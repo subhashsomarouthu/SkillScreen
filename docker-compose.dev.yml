@@ -49,7 +49,7 @@ services:
     environment:
       PORT: 8080
       HOST: 0.0.0.0
-      DATABASE_URL: postgresql://intervuai:LOYALlist_2025@skillscreen-postgres.postgres.database.azure.com:5432/skillscreen_database?sslmode=require
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/skillscreen_database
       PYTHONPATH: /app:/common-service
       # logging
       ENV: dev
@@ -81,7 +81,7 @@ services:
     environment:
       - PORT=8080
       - HOST=0.0.0.0
-      - DATABASE_URL=postgresql://intervuai:LOYALlist_2025@skillscreen-postgres.postgres.database.azure.com:5432/skillscreen_database?sslmode=require
+      - DATABASE_URL=postgresql://postgres:postgres@localhost:5432/skillscreen_database
       - USE_LLM_WEIGHTS=false   
     volumes:
       - ./backend/assessment-service:/app
@@ -97,7 +97,7 @@ services:
     environment:
       - PORT=8080
       - HOST=0.0.0.0
-      - DATABASE_URL=postgresql://intervuai:LOYALlist_2025@skillscreen-postgres.postgres.database.azure.com:5432/skillscreen_database?sslmode=require
+      - DATABASE_URL=postgresql://postgres:postgres@localhost:5432/skillscreen_database
       - PYTHONPATH=/app:/common-service
       # logging
       - ENV=dev
@@ -134,7 +134,7 @@ services:
   #     ENVIRONMENT: development
   #     DEBUG: 'True'
   #     LOG_LEVEL: INFO
-  #     DATABASE_URL: postgresql://intervuai:LOYALlist_2025@skillscreen-postgres.postgres.database.azure.com:5432/skillscreen_database?sslmode=require
+  #     DATABASE_URL: postgresql://postgres:postgres@localhost:5432/skillscreen_database
   #   volumes:
   #     - ./backend/text-service:/app
   #   networks:
@@ -174,7 +174,7 @@ services:
     environment:
       PORT: 8080
       HOST: 0.0.0.0
-      DATABASE_URL: postgresql://intervuai:LOYALlist_2025@skillscreen-postgres.postgres.database.azure.com:5432/skillscreen_database?sslmode=require
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/skillscreen_database
     volumes:
       - ./backend/video-ai-service:/app
     networks:
@@ -196,7 +196,7 @@ services:
       ENVIRONMENT: development
       DEBUG: 'True'
       LOG_LEVEL: INFO
-      DATABASE_URL: postgresql://intervuai:LOYALlist_2025@skillscreen-postgres.postgres.database.azure.com:5432/skillscreen_database?sslmode=require
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/skillscreen_database
     volumes:
       - ./backend/text-ai-service:/app
       - ./backend/common-service:/common-service
@@ -218,7 +218,7 @@ services:
     environment:
       - PORT=8080
       - HOST=0.0.0.0
-      - DATABASE_URL=postgresql://intervuai:LOYALlist_2025@skillscreen-postgres.postgres.database.azure.com:5432/skillscreen_database?sslmode=require
+      - DATABASE_URL=postgresql://postgres:postgres@localhost:5432/skillscreen_database
       - PYTHONPATH=/app:/common-service
       - CORS_ORIGINS=http://localhost:3000
       - AZURE_RESUME_SAS_URL=https://skillscreenstorage00.blob.core.windows.net/resumes?sp=racwdl&st=2025-11-18T22:03:40Z&se=2026-01-01T06:18:40Z&spr=https&sv=2024-11-04&sr=c&sig=OwDaTiu32nUCTpk3OCrcHtwbUELDWpGBh8PGcNZ3r0o%3D
@@ -238,7 +238,7 @@ services:
     environment:
       PORT: 8080
       HOST: 0.0.0.0
-      DATABASE_URL: postgresql://intervuai:LOYALlist_2025@skillscreen-postgres.postgres.database.azure.com:5432/skillscreen_database?sslmode=require
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/skillscreen_database
       CORS_ORIGINS: http://localhost:3000
       PYTHONPATH: /app:/common-service
       USE_AZURE_STORAGE: 'false'
@@ -256,7 +256,7 @@ services:
     environment:
       PORT: 8080
       HOST: 0.0.0.0
-      DATABASE_URL: postgresql://intervuai:LOYALlist_2025@skillscreen-postgres.postgres.database.azure.com:5432/skillscreen_database?sslmode=require
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/skillscreen_database
     volumes:
       - ./backend/notification-service:/app
     networks:
@@ -272,7 +272,7 @@ services:
       HOST: 0.0.0.0
       SECRET_KEY: supersecret
       ALGORITHM: HS256
-      DATABASE_URL: postgresql://intervuai:LOYALlist_2025@skillscreen-postgres.postgres.database.azure.com:5432/skillscreen_database?sslmode=require
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/skillscreen_database
     volumes:
       - ./backend/sso-service:/app
     networks:
@@ -286,7 +286,7 @@ services:
     environment:
       PORT: 8080
       HOST: 0.0.0.0
-      DATABASE_URL: postgresql://intervuai:LOYALlist_2025@skillscreen-postgres.postgres.database.azure.com:5432/skillscreen_database?sslmode=require
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/skillscreen_database
       SEQ_URL: http://seq:5341
       # logging
       ENV: dev

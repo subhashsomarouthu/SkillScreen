@@ -262,7 +262,7 @@ out/
 *.onnx
 *.pt
 *.pth
-models/
+
 checkpoints/
 *.bin
 
