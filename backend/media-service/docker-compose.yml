@@ -17,7 +17,7 @@ services:
       - CORS_ORIGINS= "*"
       # Set a strong token in .env for production!
       - ADMIN_TOKEN= "${ADMIN_TOKEN:?set-in-.env}"
-      - DATABASE_URL=postgresql://postgres:postgres@localhost:5432/skillscreen_database
+      - DATABASE_URL=postgresql://postgres:postgres@host.docker.internal:5432/skillscreen_database
       - PYTHONPATH=/app:/common-service
     volumes:
       - ./backend/media-service:/app

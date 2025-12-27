@@ -147,7 +147,9 @@ async def start_interview_step2(interview_id: str):
             logger.warning(f"⚠️ TTS generation failed, continuing without audio: {audio_result.get('message')}")
             audio_url = None
         else:
-            audio_url = audio_result.get("data", {}).get("audio_url")
+            # Add /audio-ai prefix for API Gateway routing
+            raw_audio_url = audio_result.get("data", {}).get("audio_url")
+            audio_url = f"/audio-ai{raw_audio_url}" if raw_audio_url else None
 
         # Step 4: Build response
         response_data = {

@@ -136,7 +136,9 @@ async def get_next_question(request: NextQuestionRequest):
 
         audio_url = None
         if audio_result.get("success"):
-            audio_url = audio_result.get("data", {}).get("audio_url")
+            # Add /audio-ai prefix for API Gateway routing
+            raw_audio_url = audio_result.get("data", {}).get("audio_url")
+            audio_url = f"/audio-ai{raw_audio_url}" if raw_audio_url else None
             logger.info(f"✅ TTS generated")
         else:
             logger.warning(f"⚠️ TTS generation failed: {audio_result.get('error')}")
@@ -375,7 +377,9 @@ async def submit_video_response(
 
         audio_url = None
         if audio_result.get("success"):
-            audio_url = audio_result.get("data", {}).get("audio_url")
+            # Add /audio-ai prefix for API Gateway routing
+            raw_audio_url = audio_result.get("data", {}).get("audio_url")
+            audio_url = f"/audio-ai{raw_audio_url}" if raw_audio_url else None
             logger.info(f"✅ TTS generated")
         else:
             logger.warning(f"⚠️ TTS generation failed: {audio_result.get('error')}")
