@@ -32,6 +32,13 @@ export default function ModernInterviewScreen({ participantName, fromToken = fal
   const [showProcessingModal, setShowProcessingModal] = useState(false);
   const [interviewQuestions, setInterviewQuestions] = useState<any[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+
+  // Dynamic interview state
+  const [currentQuestion, setCurrentQuestion] = useState<any>(null);
+  const [questionAudioUrl, setQuestionAudioUrl] = useState<string | null>(null);
+  const [interviewStatus, setInterviewStatus] = useState<'continue' | 'completed'>('continue');
+  const [isLoadingQuestion, setIsLoadingQuestion] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   
   // Media recording refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -143,24 +150,50 @@ export default function ModernInterviewScreen({ participantName, fromToken = fal
     };
   }, [isRecording]);
 
-  // Load interview questions on mount
+  // Start interview and get first question when interviewId is available
   useEffect(() => {
-    const loadQuestions = async () => {
+    if (!interviewId) return;
+
+    const startInterviewAndGetFirstQuestion = async () => {
+      setIsLoadingQuestion(true);
       try {
-        // For demo purposes, use local demo questions
-        // In production, this would fetch from AI service
-        const demoQuestions = getDemoInterviewQuestions();
-        setInterviewQuestions(demoQuestions);
-        console.log('Demo interview questions loaded:', demoQuestions.length);
+        console.log('🎬 Starting interview:', interviewId);
+        const response = await fetch(`${API_BASE_URL}/orchestration/api/interviews/start/${interviewId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+
+        const data = await response.json();
+        console.log('📝 Interview start response:', data);
+
+        if (data.success) {
+          setCurrentQuestion({
+            question_text: data.data.question_text,
+            question_number: data.data.question_number,
+            session_id: data.data.session_id
+          });
+          setQuestionAudioUrl(data.data.audio_url);
+
+          // Play audio automatically
+          if (data.data.audio_url) {
+            console.log('🎵 Playing question audio:', data.data.audio_url);
+            if (audioRef.current) {
+              audioRef.current.src = `${API_BASE_URL}${data.data.audio_url}`;
+              audioRef.current.play().catch(err => console.error('Audio playback failed:', err));
+            }
+          }
+        } else {
+          console.error('Failed to start interview:', data);
+        }
       } catch (error) {
-        console.error('Failed to load interview questions:', error);
-        // Fallback to demo questions
-        setInterviewQuestions(getDemoInterviewQuestions());
+        console.error('Failed to start interview:', error);
+      } finally {
+        setIsLoadingQuestion(false);
       }
     };
 
-    loadQuestions();
-  }, []);
+    startInterviewAndGetFirstQuestion();
+  }, [interviewId]);
 
   // Create interview session on mount and auto-start recording
   useEffect(() => {
@@ -622,6 +655,59 @@ export default function ModernInterviewScreen({ participantName, fromToken = fal
     }
   };
 
+  const submitVideoAndGetNextQuestion = async (videoBlob: Blob) => {
+    if (!interviewId || !currentQuestion?.session_id) {
+      console.error('Missing interview or session ID');
+      return;
+    }
+
+    setIsLoadingQuestion(true);
+    try {
+      console.log('📤 Submitting video answer...');
+
+      const formData = new FormData();
+      formData.append('video_file', videoBlob, 'answer.webm');
+      formData.append('interview_id', interviewId);
+      formData.append('session_id', currentQuestion.session_id);
+
+      const response = await fetch(`${API_BASE_URL}/orchestration/api/questions/submit-video-response`, {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await response.json();
+      console.log('📝 Submit video response:', data);
+
+      if (data.status === 'continue') {
+        // Update to next question
+        setCurrentQuestion({
+          question_text: data.next_question_text,
+          question_number: (currentQuestion.question_number || 0) + 1,
+          session_id: data.next_question_id
+        });
+        setQuestionAudioUrl(data.audio_download_url);
+        setInterviewStatus('continue');
+
+        // Play next question audio
+        if (data.audio_download_url && audioRef.current) {
+          console.log('🎵 Playing next question audio');
+          audioRef.current.src = `${API_BASE_URL}${data.audio_download_url}`;
+          audioRef.current.play().catch(err => console.error('Audio playback failed:', err));
+        }
+      } else if (data.status === 'completed') {
+        // Interview completed
+        setInterviewStatus('completed');
+        console.log('✅ Interview completed!');
+        console.log('📊 Summary:', data.summary);
+      }
+    } catch (error) {
+      console.error('Failed to submit video:', error);
+      alert('Failed to submit answer. Please try again.');
+    } finally {
+      setIsLoadingQuestion(false);
+    }
+  };
+
   const toggleRecording = () => {
     if (isRecording) {
       stopRecording();
@@ -874,14 +960,108 @@ export default function ModernInterviewScreen({ participantName, fromToken = fal
         )}
       </AnimatePresence>
 
-      {/* Question Modal */}
+      {/* Hidden Audio Element for TTS Playback */}
+      <audio ref={audioRef} style={{ display: 'none' }} />
+
+      {/* Question Modal - Show current question only */}
       <QuestionModal
         isOpen={isQuestionModalOpen}
         onClose={() => setIsQuestionModalOpen(false)}
-        questions={interviewQuestions}
-        currentQuestionIndex={currentQuestionIndex}
-        onQuestionChange={setCurrentQuestionIndex}
+        questions={currentQuestion ? [currentQuestion] : []}
+        currentQuestionIndex={0}
+        onQuestionChange={() => {}}
       />
+
+      {/* Current Question Display (Always Visible) */}
+      {currentQuestion && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="fixed top-32 left-0 right-0 mx-auto max-w-4xl px-6 z-10"
+        >
+          <div className="glass-dark rounded-2xl p-6 shadow-2xl border border-white/10">
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="px-3 py-1 rounded-full bg-blue-500/20 text-blue-400 text-sm font-medium">
+                  Question {currentQuestion.question_number}
+                </div>
+                {questionAudioUrl && (
+                  <button
+                    onClick={() => {
+                      if (audioRef.current) {
+                        audioRef.current.currentTime = 0;
+                        audioRef.current.play();
+                      }
+                    }}
+                    className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                    title="Replay question audio"
+                  >
+                    <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            </div>
+            <p className="text-lg text-white leading-relaxed">
+              {currentQuestion.question_text}
+            </p>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Next/Submit Button */}
+      {currentQuestion && isRecording && (
+        <motion.div
+          initial={{ opacity: 0, y: 50 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="fixed bottom-32 right-8 z-50"
+        >
+          <button
+            onClick={async () => {
+              // Stop recording and get video blob
+              if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+                mediaRecorderRef.current.stop();
+
+                // Wait for chunks to be collected
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                // Create video blob from chunks
+                const videoBlob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+
+                // Reset recording state
+                cleanupRecording();
+                recordedChunksRef.current = [];
+
+                // Submit video and get next question
+                await submitVideoAndGetNextQuestion(videoBlob);
+
+                // Restart recording for next question (if interview continues)
+                if (interviewStatus === 'continue') {
+                  setTimeout(() => startRecording(), 1000);
+                }
+              }
+            }}
+            disabled={isLoadingQuestion}
+            className={`px-8 py-4 rounded-2xl font-semibold text-lg shadow-2xl transition-all ${
+              interviewStatus === 'completed'
+                ? 'bg-green-500 hover:bg-green-600 text-white'
+                : 'bg-blue-500 hover:bg-blue-600 text-white'
+            } ${isLoadingQuestion ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            {isLoadingQuestion ? (
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                <span>Processing...</span>
+              </div>
+            ) : interviewStatus === 'completed' ? (
+              'Submit Interview'
+            ) : (
+              'Next Question →'
+            )}
+          </button>
+        </motion.div>
+      )}
     </div>
   );
 }
