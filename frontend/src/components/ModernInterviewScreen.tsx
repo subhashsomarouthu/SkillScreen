@@ -1020,10 +1020,15 @@ export default function ModernInterviewScreen({ participantName, fromToken = fal
             </div>
             <div className="flex gap-4 justify-center mt-8">
               <button
-                onClick={() => window.location.href = '/dashboard'}
-                className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold rounded-xl transition-all shadow-lg"
+                onClick={() => {
+                  // Try to close the tab/window
+                  window.close();
+                  // If window.close() doesn't work (security restrictions),
+                  // the message above already tells the user they can close manually
+                }}
+                className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold rounded-xl transition-all shadow-lg hover:scale-105 transform"
               >
-                Go to Dashboard
+                End Interview
               </button>
             </div>
           </motion.div>
