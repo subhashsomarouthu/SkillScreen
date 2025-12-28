@@ -195,6 +195,22 @@ export default function ModernInterviewScreen({ participantName, fromToken = fal
     startInterviewAndGetFirstQuestion();
   }, [interviewId]);
 
+  // Auto-start recording when a new question is loaded
+  useEffect(() => {
+    // Only auto-start if:
+    // 1. We have a current question
+    // 2. Interview is continuing (not completed)
+    // 3. Recording is not already active
+    // 4. Not currently loading a question
+    if (currentQuestion && interviewStatus === 'continue' && !isRecording && !isLoadingQuestion) {
+      console.log('🎥 Auto-starting recording for question:', currentQuestion.question_number);
+      // Small delay to ensure audio starts playing first
+      setTimeout(() => {
+        startRecording();
+      }, 500);
+    }
+  }, [currentQuestion, interviewStatus]);
+
   // Create interview session on mount and auto-start recording
   useEffect(() => {
     let isActive = true;
@@ -972,8 +988,50 @@ export default function ModernInterviewScreen({ participantName, fromToken = fal
         onQuestionChange={() => {}}
       />
 
+      {/* Interview Completion Screen */}
+      {interviewStatus === 'completed' && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="fixed inset-0 flex items-center justify-center z-50 bg-black/60 backdrop-blur-sm px-6"
+        >
+          <motion.div
+            initial={{ y: 20 }}
+            animate={{ y: 0 }}
+            className="glass-dark rounded-2xl p-8 md:p-12 max-w-2xl w-full text-center border border-white/10 shadow-2xl"
+          >
+            <div className="mb-6">
+              <div className="w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+                Interview Completed!
+              </h2>
+              <p className="text-xl text-white/90 mb-6">
+                Thank you for your time.
+              </p>
+              <div className="bg-white/5 rounded-xl p-6 border border-white/10">
+                <p className="text-white/80 leading-relaxed">
+                  You can expect results or a callback from HR management within <span className="font-semibold text-blue-400">3 business days</span> if selected.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-4 justify-center mt-8">
+              <button
+                onClick={() => window.location.href = '/dashboard'}
+                className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold rounded-xl transition-all shadow-lg"
+              >
+                Go to Dashboard
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+
       {/* Current Question Display (Always Visible) */}
-      {currentQuestion && (
+      {currentQuestion && interviewStatus === 'continue' && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1034,12 +1092,8 @@ export default function ModernInterviewScreen({ participantName, fromToken = fal
                 recordedChunksRef.current = [];
 
                 // Submit video and get next question
+                // Recording will auto-start via useEffect when new question loads
                 await submitVideoAndGetNextQuestion(videoBlob);
-
-                // Restart recording for next question (if interview continues)
-                if (interviewStatus === 'continue') {
-                  setTimeout(() => startRecording(), 1000);
-                }
               }
             }}
             disabled={isLoadingQuestion}
