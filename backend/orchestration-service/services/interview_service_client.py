@@ -140,8 +140,8 @@ class InterviewServiceClient:
             raise
 
     async def update_interview_status(self, interview_id: str, status: str) -> Dict:
-        """Update interview status"""
-        url = f"{self.base_url}/api/session/{interview_id}/status"
+        """Update interview status in database"""
+        url = f"{self.base_url}/api/interviews/{interview_id}/status"
 
         try:
             logger.info(f"📝 Updating interview {interview_id} status to {status}")
@@ -149,7 +149,7 @@ class InterviewServiceClient:
                 response = await client.patch(url, json={"status": status})
                 response.raise_for_status()
                 result = response.json()
-                logger.info(f"✅ Interview status updated")
+                logger.info(f"✅ Interview status updated to {status}")
                 return result
         except Exception as e:
             logger.error(f"❌ Status update failed: {str(e)}")

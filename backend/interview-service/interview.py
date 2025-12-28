@@ -241,6 +241,36 @@ async def get_interview(interview_id: str):
         logger.error(f"Error fetching interview: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch interview: {str(e)}")
 
+@app.patch("/api/interviews/{interview_id}/status")
+async def update_interview_status(interview_id: str, request: Request):
+    """Update interview status in database"""
+    try:
+        body = await request.json()
+        status = body.get("status")
+
+        if not status:
+            raise HTTPException(status_code=400, detail="Status is required")
+
+        session = DBFactory.get_session()
+        try:
+            interview_repo = InterviewRepository(session)
+            interview = interview_repo.update_interview_status(interview_id, status)
+
+            if not interview:
+                raise HTTPException(status_code=404, detail="Interview not found")
+
+            session.commit()
+            logger.info(f"✅ Interview {interview_id} status updated to {status}")
+
+            return create_response(interview.to_dict(), success=True)
+        finally:
+            session.close()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating interview status: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to update interview status: {str(e)}")
+
 # ========================================
 # Token Management Endpoints
 # ========================================
