@@ -91,15 +91,19 @@ class AudioProcessingService:
                     return self._error_response(media_url, "extraction", error, start_time)
             
             duration = self.extractor.get_audio_duration(audio_path)
-            logger.info(f"Audio duration: {duration:.2f} seconds")
-            
-            # Validate duration
-            if duration > (settings.MAX_VIDEO_DURATION_MINUTES * 60):
-                return self._error_response(
-                    media_url, "validation",
-                    f"Duration {duration/60:.1f} minutes exceeds limit of {settings.MAX_VIDEO_DURATION_MINUTES} minutes",
-                    start_time
-                )
+            if duration is None:
+                logger.warning("Could not determine audio duration, skipping duration validation")
+                duration = 0  # Set default value
+            else:
+                logger.info(f"Audio duration: {duration:.2f} seconds")
+
+                # Validate duration
+                if duration > (settings.MAX_VIDEO_DURATION_MINUTES * 60):
+                    return self._error_response(
+                        media_url, "validation",
+                        f"Duration {duration/60:.1f} minutes exceeds limit of {settings.MAX_VIDEO_DURATION_MINUTES} minutes",
+                        start_time
+                    )
             
             # Step 3: Transcribe
             logger.info("Step 3/6: Transcribing audio...")

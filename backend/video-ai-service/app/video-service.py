@@ -4,6 +4,7 @@ from app.config import settings
 from app.controllers.analyze_controller import router as analyze_router
 from app.helpers.device_select import pick_device
 from app.controllers import processed_controller
+from app.controllers.interview_controller import router as interview_router
 
 app = FastAPI(title=settings.APP_NAME)
 
@@ -16,6 +17,7 @@ def health():
 
 app.include_router(analyze_router, prefix="")
 app.include_router(processed_controller.router)
+app.include_router(interview_router, prefix="/api/video")
 
 def get_device():
     return DEVICE

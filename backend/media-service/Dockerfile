@@ -33,7 +33,7 @@ COPY app /app
 COPY media_service.py /app/
 
 # ---- File permissions & uploads dir ----
-RUN mkdir -p /app/uploads && \
+RUN mkdir -p /app/uploads /app/temp/uploads && \
     chown -R appuser:appuser /app
 
 USER appuser

@@ -33,5 +33,5 @@ ENV YOLO_CONFIG_DIR=/app/.ultra_cfg \
     YOLOv8_DIR=/app/.ultra_cfg
 
 # --- Default Command ---
-# If you’re using FastAPI (as most of your files suggest)
-CMD ["/bin/sh", "-lc", "uvicorn app.video-service:app --host 0.0.0.0 --port ${SERVER_PORT:-5010}"]
+# If you're using FastAPI (as most of your files suggest)
+CMD ["/bin/sh", "-lc", "uvicorn app.video-service:app --host 0.0.0.0 --port ${PORT:-8080}"]

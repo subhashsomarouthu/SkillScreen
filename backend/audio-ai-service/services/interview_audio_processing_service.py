@@ -108,19 +108,19 @@ class InterviewAudioProcessingService:
 
             if retry_count >= self.max_retries:
                 logger.error(f"❌ Max retries ({self.max_retries}) exceeded")
-                repo.mark_processing_failed(
-                    media_file_id,
-                    f"Max retries ({self.max_retries}) exceeded",
-                    retry_count
-                )
+                # Note: Not updating media_files.status to avoid conflict with video-ai-service
                 return
 
-            # Mark as processing and download
-            repo.mark_processing_started(media_file_id)
+            # Get blob_name for local file path construction
+            blob_name = media_file.get('blob_name')
+            logger.info(f"📦 Blob name: {blob_name}")
+
+            # Note: Not updating media_files.status to avoid conflict with video-ai-service
+            # Both services process the same media_file concurrently
             downloader = MediaDownloader()
 
             media_path, _, download_error = self._download_media(
-                downloader, storage_uri, media_file_id
+                downloader, storage_uri, media_file_id, interview_id, blob_name
             )
 
             if download_error:
@@ -150,8 +150,7 @@ class InterviewAudioProcessingService:
                 interview_id, session_id, media_file_id
             )
 
-            # Mark completed
-            repo.mark_processing_completed(media_file_id)
+            # Note: Not updating media_files.status to avoid conflict with video-ai-service
             logger.info(f"🎉 [Background] Processing completed for {media_file_id}")
 
         except Exception as e:
@@ -197,14 +196,18 @@ class InterviewAudioProcessingService:
         self,
         downloader: MediaDownloader,
         storage_uri: str,
-        media_file_id: str
+        media_file_id: str,
+        interview_id: str,
+        blob_name: str = None
     ) -> tuple:
-        """Download media from Azure Blob Storage"""
+        """Download media from Azure Blob Storage or local path"""
         logger.info(f"📥 Downloading: {storage_uri}")
 
         media_path, media_type, download_error = downloader.download(
             storage_uri,
-            media_file_id=media_file_id
+            media_file_id=media_file_id,
+            interview_id=interview_id,
+            blob_name=blob_name
         )
 
         if not download_error:
@@ -242,7 +245,7 @@ class InterviewAudioProcessingService:
                 media_file = repo.get_media_file_by_id(media_file_id)
                 retry_count = self._get_retry_count(media_file)
 
-                repo.mark_processing_failed(media_file_id, str(error), retry_count)
+                # Note: Not updating media_files.status to avoid conflict with video-ai-service
                 repo.save_error_analysis(interview_id, session_id, str(error))
             except Exception as db_error:
                 logger.error(f"Failed to save error: {db_error}")
@@ -291,8 +294,7 @@ class InterviewAudioProcessingService:
                 daemon=True
             ).start()
         else:
-            # Max retries exceeded
-            repo.mark_processing_failed(media_file_id, error_msg, retry_count)
+            # Max retries exceeded - Note: Not updating media_files.status to avoid conflict
             repo.save_error_analysis(interview_id, session_id, error_msg)
     
     def _save_results(
