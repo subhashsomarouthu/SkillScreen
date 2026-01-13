@@ -258,11 +258,40 @@ async def submit_video_response(
             raise HTTPException(status_code=400, detail="Video upload failed")
 
         storage_uri = upload_result.get("data", {}).get("storage_uri")
+        media_file_id = upload_result.get("data", {}).get("file_id")
+
         if not storage_uri:
             logger.error("❌ No storage_uri returned from media-service")
             raise HTTPException(status_code=400, detail="No storage URI returned")
 
         logger.info(f"✅ Video uploaded: {storage_uri}")
+
+        # BACKGROUND STEP: Trigger async audio & video AI analysis (fire-and-forget)
+        if media_file_id:
+            logger.info("🚀 Triggering background AI analysis")
+            try:
+                # Trigger audio analysis (async)
+                await audio_client.analyze_audio(
+                    interview_id=interview_id,
+                    session_id=session_id,
+                    media_file_id=media_file_id
+                )
+                logger.info("✅ Audio analysis triggered")
+            except Exception as e:
+                logger.warning(f"⚠️ Audio analysis trigger failed (non-blocking): {str(e)}")
+
+            try:
+                # Trigger video analysis (async)
+                await audio_client.analyze_video(
+                    interview_id=interview_id,
+                    session_id=session_id,
+                    media_file_id=media_file_id
+                )
+                logger.info("✅ Video analysis triggered")
+            except Exception as e:
+                logger.warning(f"⚠️ Video analysis trigger failed (non-blocking): {str(e)}")
+        else:
+            logger.warning("⚠️ No media_file_id - skipping background AI analysis")
 
         # STEP 2: Transcribe video
         logger.info("🎤 Step 2: Transcribing video")

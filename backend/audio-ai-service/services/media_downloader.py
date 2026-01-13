@@ -122,59 +122,78 @@ class MediaDownloader:
         return 'drive.google.com' in url.lower()
     
     def download(
-        self, 
-        media_url: str, 
-        media_file_id: Optional[UUID] = None
+        self,
+        media_url: str,
+        media_file_id: Optional[UUID] = None,
+        interview_id: str = None,
+        blob_name: str = None
     ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
         """
         Download media from URL with retry logic
         Supports: HTTP/HTTPS, Google Drive, Azure Blob Storage, local files
-        
+
         Args:
             media_url: URL of media to download (can be complete Azure Blob URL with SAS)
             media_file_id: Optional UUID for database tracking
-        
+            interview_id: Interview ID for local path construction
+            blob_name: Actual filename from database (e.g., "interview_id_hash_response.webm")
+
         Returns:
             (filepath, media_type, error_message)
             media_type: 'audio', 'video', or 'unknown'
         """
         log_prefix = f"[MediaFile:{media_file_id}]" if media_file_id else "[Download]"
-        
+
         try:
             # Sanitize URL
             media_url = sanitize_url(media_url)
             logger.info(f"{log_prefix} Processing URL: {media_url[:100]}...")
-            
+
             # Detect source type
             is_azure = self._is_azure_blob_url(media_url)
             is_google_drive = self._is_google_drive_url(media_url)
-            
+
             # Convert Google Drive URLs to direct download
             if is_google_drive:
                 logger.info(f"{log_prefix} Detected Google Drive URL")
                 media_url = self._convert_google_drive_url(media_url)
             elif is_azure:
                 logger.info(f"{log_prefix} Detected Azure Blob Storage URL")
-            
+
             # Support local files (absolute/relative paths or file:// URLs)
             local_path = None
             if media_url.startswith('file://'):
                 local_path = media_url[len('file://'):]
+            elif media_url.startswith('/'):
+                # Local path - use blob_name to construct actual file path
+                # Files are saved to /app/temp/uploads/{interview_id}/{blob_name}
+                if blob_name and interview_id:
+                    potential_local_path = f"/app/temp/uploads/{interview_id}/{blob_name}"
+                else:
+                    # Fallback if blob_name not provided
+                    potential_local_path = f"/app/temp/uploads{media_url}".replace("/video/", "/", 1)
+
+                if os.path.exists(potential_local_path):
+                    local_path = potential_local_path
+                    logger.info(f"{log_prefix} Found local file at shared volume: {local_path}")
             elif os.path.exists(media_url):
                 local_path = media_url
-            
+
             # Detect media type
-            media_type = detect_media_type(media_url)
-            logger.info(f"{log_prefix} Detected media type: {media_type}")
+            # IMPORTANT: Use blob_name for accurate detection if available (contains actual file extension)
+            detection_source = blob_name if blob_name else media_url
+            media_type = detect_media_type(detection_source)
+            logger.info(f"{log_prefix} Detected media type: {media_type} (from {detection_source})")
             
             # Validate URL (non-blocking for servers that block HEAD requests)
             if not is_azure and not local_path:
                 logger.info(f"{log_prefix} Validating media URL")
                 if not validate_media_url(media_url):
                     logger.warning(f"{log_prefix} URL validation failed, attempting direct download anyway")
-            
+
             # Determine file extension
-            suffix = self._determine_file_extension(media_url, media_type)
+            # IMPORTANT: Use same detection_source for consistent extension detection
+            suffix = self._determine_file_extension(detection_source, media_type)
             logger.info(f"{log_prefix} Using file extension: {suffix}")
             
             # Handle local file copy

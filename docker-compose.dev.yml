@@ -149,7 +149,7 @@ services:
     ports:
       - "8000:8080"
     env_file:
-      - ./backend/audio-ai-service/.env  
+      - ./backend/audio-ai-service/.env
     environment:
       PORT: 8080
       HOST: 0.0.0.0
@@ -163,6 +163,7 @@ services:
     volumes:
       - ./backend/audio-ai-service:/app
       - ./backend/common-service:/common-service
+      - media-storage:/app/temp/uploads
     networks:
       - skill-screen-network
 
@@ -171,12 +172,18 @@ services:
       context: ./backend/video-ai-service
       dockerfile: Dockerfile
     container_name: video-ai-service
+    ports:
+      - "8006:8080"
     environment:
       PORT: 8080
       HOST: 0.0.0.0
       DATABASE_URL: postgresql://postgres:postgres@host.docker.internal:5432/skillscreen_database
+      PYTHONPATH: /app:/common-service
+      TARGET_FPS: 2.0  # Frame sampling rate: 2 FPS = 0.5 second intervals (for 30fps video: every 15th frame)
     volumes:
       - ./backend/video-ai-service:/app
+      - ./backend/common-service:/common-service
+      - media-storage:/app/temp/uploads
     networks:
       - skill-screen-network
 
@@ -245,6 +252,7 @@ services:
     volumes:
       - ./backend/media-service:/app
       - ./backend/common-service:/common-service
+      - media-storage:/app/temp/uploads
     networks:
       - skill-screen-network
 
@@ -352,3 +360,4 @@ networks:
 
 volumes:
   seq-data: {}
+  media-storage: {}

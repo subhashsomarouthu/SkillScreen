@@ -109,7 +109,7 @@ class AudioServiceClient:
         Returns:
             { success: true/false }
         """
-        url = f"{self.base_url}/api/analysis/audio"
+        url = f"{self.base_url}/api/audio/process-interview-audio"
 
         payload = {
             "interview_id": interview_id,
@@ -138,7 +138,10 @@ class AudioServiceClient:
         Returns:
             { success: true/false }
         """
-        url = f"{self.base_url}/api/analysis/video"
+        # Use VIDEO_AI_SERVICE_URL instead of AUDIO_AI_SERVICE_URL
+        from config.settings import settings
+        video_url = settings.VIDEO_AI_SERVICE_URL
+        url = f"{video_url}/api/video/interview/process-interview-video"
 
         payload = {
             "interview_id": interview_id,
