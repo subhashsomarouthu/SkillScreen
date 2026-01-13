@@ -179,6 +179,7 @@ services:
       HOST: 0.0.0.0
       DATABASE_URL: postgresql://postgres:postgres@host.docker.internal:5432/skillscreen_database
       PYTHONPATH: /app:/common-service
+      TARGET_FPS: 2.0  # Frame sampling rate: 2 FPS = 0.5 second intervals (for 30fps video: every 15th frame)
     volumes:
       - ./backend/video-ai-service:/app
       - ./backend/common-service:/common-service

@@ -254,8 +254,9 @@ class InterviewVideoProcessingService:
                 #   {"type": "look_away", "start": 30.0, "end": 35.5}
                 # ]
 
-                # Frame-level events (optional, for deep analysis)
-                # "events": full_report.get("events", [])[:100]  # Limit to first 100 events to save space
+                # Frame-level events (IMPORTANT for detailed behavioral analysis!)
+                # Includes per-frame metrics: attention, engagement, head pose, blink detection, etc.
+                "events": full_report.get("events", [])
             }
 
             # Add emotion ratios if present
@@ -263,9 +264,23 @@ class InterviewVideoProcessingService:
                 if key.startswith("emotion_") and key.endswith("_ratio"):
                     analysis_data[key] = value
 
-            # Log important segments for debugging
+            # Extract and add explicit cheating timestamps
             segments = full_report.get("segments", [])
             cheating_segments = [s for s in segments if s.get("type") in ["multi_person", "prohibited_item"]]
+
+            # Add explicit cheating incidents array with clear timestamps
+            analysis_data["cheating_incidents"] = [
+                {
+                    "type": seg.get("type"),
+                    "start_time": seg.get("start"),  # Timestamp in seconds
+                    "end_time": seg.get("end"),      # Timestamp in seconds
+                    "duration": round(seg.get("end", 0) - seg.get("start", 0), 2)
+                }
+                for seg in cheating_segments
+            ]
+            analysis_data["cheating_incidents_count"] = len(cheating_segments)
+
+            # Log important segments for debugging
             if cheating_segments:
                 logger.warning(f"⚠️ INTEGRITY ALERTS: {len(cheating_segments)} incidents detected:")
                 for seg in cheating_segments[:5]:  # Log first 5

@@ -493,12 +493,21 @@ class VideoAnalyzer:
                         gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
                         metrics["lighting"] = float(np.clip(np.mean(gray) / 255.0, 0.0, 1.0))
 
+                    # Add explicit cheating flags for easier interpretation
+                    multi_person_detected = len(persons or []) > 1
+                    prohibited_item_detected = len(objects or []) > 0
+
                     events.append({
                         "t": round(t_sec, 3),
                         "faces": faces or [],
                         "persons": persons or [],
                         "objects": objects or [],
                         "metrics": metrics,
+                        "cheating_flags": {
+                            "multi_person": multi_person_detected,
+                            "prohibited_item": prohibited_item_detected,
+                            "is_cheating": multi_person_detected or prohibited_item_detected
+                        }
                     })
                     analyzed_frames += 1
 
