@@ -626,37 +626,43 @@ This assessment was automatically generated due to critical cheating violations 
         }
     
     def _aggregate_text_scores(self, text_analyses: List[Dict]) -> Dict:
-        """Aggregate scores from text-ai-service"""
+        """Aggregate scores from text-ai-service
+
+        Text-service outputs per-question evaluation with:
+        - evaluation_score: 0-100 score for response quality
+        - strengths: list of identified strengths
+        - areas_for_improvement: list of improvement areas
+
+        We use evaluation_score as the technical score since it represents
+        how well the candidate answered the technical interview questions.
+        """
         if not text_analyses:
             return {"overall": 0, "technical": 0, "communication": 0}
-        
-        technical_scores = []
-        communication_scores = []
-        
+
+        evaluation_scores = []
+
         for analysis in text_analyses:
             raw_results = analysis.get('raw_results', {})
-            
-            # Try to get from interview_summary first, then fall back to root level
-            summary = raw_results.get('interview_summary', raw_results)
-            
-            tech_assessment = summary.get('technical_assessment', {})
-            if tech_assessment.get('score'):
-                technical_scores.append(float(tech_assessment['score']) * 10)
-            
-            comm_assessment = summary.get('communication_assessment', {})
-            if comm_assessment.get('score'):
-                communication_scores.append(float(comm_assessment['score']) * 10)
-        
-        overall = []
-        if technical_scores:
-            overall.extend(technical_scores)
-        if communication_scores:
-            overall.extend(communication_scores)
-        
+
+            # Text-service uses evaluation_score (0-100)
+            eval_score = raw_results.get('evaluation_score')
+            if eval_score is not None:
+                evaluation_scores.append(float(eval_score))
+            else:
+                # Fallback: try interview_summary.technical_assessment.score format (legacy)
+                summary = raw_results.get('interview_summary', raw_results)
+                tech_assessment = summary.get('technical_assessment', {})
+                if tech_assessment.get('score'):
+                    evaluation_scores.append(float(tech_assessment['score']) * 10)
+
+        avg_score = sum(evaluation_scores) / len(evaluation_scores) if evaluation_scores else 0
+
+        # Use evaluation_score as both technical and communication score
+        # since it evaluates overall response quality including clarity and structure
         return {
-            "overall": sum(overall) / len(overall) if overall else 0,
-            "technical": sum(technical_scores) / len(technical_scores) if technical_scores else 0,
-            "communication": sum(communication_scores) / len(communication_scores) if communication_scores else 0
+            "overall": avg_score,
+            "technical": avg_score,
+            "communication": avg_score
         }
     
     def _aggregate_coding_scores(self, coding_analyses: List[Dict]) -> Dict:
@@ -817,18 +823,31 @@ This assessment was automatically generated due to critical cheating violations 
         """Extract key highlights from text analysis for LLM"""
         if not text_analyses:
             return {}
-        
-        first = text_analyses[0].get('raw_results', {})
-        summary = first.get('interview_summary', {})
-        
-        tech_assessment = summary.get('technical_assessment', {})
-        comm_assessment = summary.get('communication_assessment', {})
-        
+
+        # Aggregate across all text analyses
+        all_strengths = []
+        all_improvements = []
+        all_feedback = []
+        avg_score = 0
+
+        for analysis in text_analyses:
+            raw_results = analysis.get('raw_results', {})
+            all_strengths.extend(raw_results.get('strengths', []))
+            all_improvements.extend(raw_results.get('areas_for_improvement', []))
+            feedback = raw_results.get('evaluation_feedback', '')
+            if feedback:
+                all_feedback.append(feedback)
+            score = raw_results.get('evaluation_score', 0)
+            avg_score += float(score)
+
+        avg_score = avg_score / len(text_analyses) if text_analyses else 0
+
         return {
-            "technical_summary": tech_assessment.get('summary', ''),
-            "communication_summary": comm_assessment.get('summary', ''),
-            "strengths": summary.get('strengths', []),
-            "red_flags": summary.get('red_flags', [])
+            "average_score": round(avg_score, 1),
+            "technical_summary": "; ".join(all_feedback[:3]) if all_feedback else "No detailed feedback available",
+            "communication_summary": f"Average response quality: {avg_score:.0f}/100",
+            "strengths": list(set(all_strengths))[:5],
+            "areas_for_improvement": list(set(all_improvements))[:5]
         }
     
     def _extract_coding_highlights(self, coding_analyses: List[Dict]) -> Dict:

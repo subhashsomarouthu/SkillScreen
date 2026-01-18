@@ -134,6 +134,24 @@ class AssessmentRepository(BaseRepository):
         """Helper to fetch all rows and convert to list of dicts"""
         result = self.session.execute(query)
         return [dict(row._mapping) for row in result]
+
+    def _parse_raw_results(self, raw_results) -> Dict:
+        """
+        Parse raw_results field, handling both dict and double-serialized string cases.
+
+        Some older records may have raw_results stored as JSON string instead of JSONB dict
+        due to incorrect use of json.dumps() when saving.
+        """
+        if raw_results is None:
+            return {}
+        if isinstance(raw_results, dict):
+            return raw_results
+        if isinstance(raw_results, str):
+            try:
+                return json.loads(raw_results)
+            except json.JSONDecodeError:
+                return {}
+        return {}
     
     # ==========================================
     # FIND READY INTERVIEWS
@@ -529,14 +547,18 @@ class AssessmentRepository(BaseRepository):
     # ==========================================
     # GET AI ANALYSIS RESULTS
     # ==========================================
-    
+
     def get_all_ai_analysis_for_interview(self, interview_id: str) -> List[Dict]:
         """Get all AI analysis results for an interview"""
         query = select(ai_analysis_table).where(
             ai_analysis_table.c.interview_id == interview_id
         ).order_by(ai_analysis_table.c.created_at)
 
-        return self._fetch_all(query)
+        results = self._fetch_all(query)
+        # Parse raw_results to handle double-serialized JSON from older records
+        for result in results:
+            result['raw_results'] = self._parse_raw_results(result.get('raw_results'))
+        return results
 
     def get_ai_analysis_by_service(
         self,
@@ -551,7 +573,11 @@ class AssessmentRepository(BaseRepository):
             )
         ).order_by(ai_analysis_table.c.created_at)
 
-        return self._fetch_all(query)
+        results = self._fetch_all(query)
+        # Parse raw_results to handle double-serialized JSON from older records
+        for result in results:
+            result['raw_results'] = self._parse_raw_results(result.get('raw_results'))
+        return results
     
     # ==========================================
     # INTERVIEW & JOB POSITION INFO

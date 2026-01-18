@@ -94,7 +94,7 @@ class VideoRepository(BaseRepository):
             session_id=session_id,
             analysis_type="video",
             service_name="video-ai-service",
-            raw_results=json.dumps(analysis_data),
+            raw_results=analysis_data,  # SQLAlchemy handles JSONB serialization automatically
             confidence_score=confidence_score,
             processing_time=processing_time,
             version="1.0.0",
