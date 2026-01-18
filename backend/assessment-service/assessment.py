@@ -7,6 +7,7 @@ from config.settings import settings
 from config.logger import logger
 from controllers.assessment_controller import router as assessment_router
 from controllers.health_controller import router as health_router
+from controllers.dashboard_controller import router as dashboard_router
 from scheduler.scheduler import assessment_scheduler
 import uvicorn
 import traceback
@@ -129,6 +130,9 @@ app.include_router(health_router)
 # Assessment operations
 app.include_router(assessment_router)
 
+# Recruiter Dashboard
+app.include_router(dashboard_router)
+
 
 # ==========================================
 # ROOT ENDPOINT
@@ -150,6 +154,7 @@ async def root():
             "docs": "/docs",
             "health": "/health",
             "assessment_api": "/v1/assessment",
+            "dashboard_api": "/v1/dashboard",
             "scheduler_status": "/v1/scheduler/status"
         }
     }
