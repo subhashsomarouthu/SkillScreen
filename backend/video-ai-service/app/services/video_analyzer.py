@@ -65,18 +65,18 @@ def _compute_performance(summary: dict) -> dict:
     BANDS = getattr(settings, "PERF_GRADE_BANDS", {"A": 85, "B": 70, "C": 55})
 
     # ---- Inputs (safe defaults) ----
-    attn_ema   = float(summary.get("avg_attention_ema", 0.0))
-    engage     = float(summary.get("avg_engagement",    0.0))
-    lighting   = float(summary.get("lighting_mean",     0.5))
-    look_away  = float(summary.get("look_away_ratio",   0.0))
-    slouch     = float(summary.get("slouch_ratio",      0.0))
-    handface   = float(summary.get("hand_near_face_ratio", 0.0))
-    presence   = float(summary.get("face_presence",     0.0))
-    ttff       = float(summary.get("time_to_first_face_sec", 0.0))
-    integrity_p= float(summary.get("cheating_probability",  0.0))  # 0=safe .. 1=cheating
-    multi_pers = float(summary.get("multi_person_ratio",    0.0))
-    prohibited = float(summary.get("prohibited_ratio",      0.0))
-    blink_r    = float(summary.get("blink_ratio",           0.03))  # normal-ish default
+    attn_ema   = float(summary.get("avg_attention_ema") or 0.0)
+    engage     = float(summary.get("avg_engagement") or 0.0)
+    lighting   = float(summary.get("lighting_mean") or 0.5)
+    look_away  = float(summary.get("look_away_ratio") or 0.0)
+    slouch     = float(summary.get("slouch_ratio") or 0.0)
+    handface   = float(summary.get("hand_near_face_ratio") or 0.0)
+    presence   = float(summary.get("face_presence") or 0.0)
+    ttff       = float(summary.get("time_to_first_face_sec") or 0.0)
+    integrity_p= float(summary.get("cheating_probability") or 0.0)  # 0=safe .. 1=cheating
+    multi_pers = float(summary.get("multi_person_ratio") or 0.0)
+    prohibited = float(summary.get("prohibited_ratio") or 0.0)
+    blink_r    = float(summary.get("blink_ratio") or 0.03)  # normal-ish default
     emo_top    = summary.get("emotion_top", {})
     emo_label  = emo_top.get("label") if isinstance(emo_top, dict) else None
 
@@ -585,7 +585,7 @@ class VideoAnalyzer:
             })
             score = 0.0
             for k, alpha in w.items():
-                v = float(summary.get(k, 0.0))
+                v = float(summary.get(k) or 0.0)
                 if k == "blink_ratio":
                     v = max(0.0, 1.0 - v)  # invert: fewer blinks => higher risk
                 score += float(alpha) * v

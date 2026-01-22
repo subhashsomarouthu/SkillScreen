@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict
 from datetime import datetime
@@ -6,6 +6,7 @@ import sys
 sys.path.append('/common-service')
 from db import UnitOfWork
 from repositories.assessment_repository import AssessmentRepository
+from config.auth import get_current_user, require_role, TokenData
 
 
 router = APIRouter(prefix="/v1/dashboard", tags=["Recruiter Dashboard"])
@@ -89,7 +90,7 @@ class DashboardStatsResponse(BaseModel):
 
 @router.get("/candidates", response_model=DashboardListResponse)
 async def get_dashboard_candidates(
-    organization_id: Optional[str] = Query(None, description="Filter by organization UUID"),
+    current_user: TokenData = Depends(require_role("recruiter", "hiring_manager", "hr", "team_lead")),
     job_position_id: Optional[str] = Query(None, description="Filter by job position UUID"),
     recommendation: Optional[str] = Query(None, description="Filter by recommendation: hire, no_hire, maybe, needs_review"),
     status: Optional[str] = Query(None, description="Filter by status: assessed, pending, in_progress"),
@@ -103,9 +104,12 @@ async def get_dashboard_candidates(
     """
     Get paginated list of candidates for recruiter dashboard.
 
+    **Authentication Required:** Bearer token with recruiter/hiring_manager/hr/team_lead role.
+    Organization is automatically filtered based on the authenticated user's organization.
+
     **Features:**
     - Lists all candidates with their interview and assessment status
-    - Supports filtering by organization, job position, recommendation, status, and score range
+    - Supports filtering by job position, recommendation, status, and score range
     - Supports pagination and sorting
     - Shows both assessed candidates (with scores) and pending ones
 
@@ -118,14 +122,16 @@ async def get_dashboard_candidates(
     **Example:**
     ```
     GET /v1/dashboard/candidates?status=assessed&recommendation=hire&sort_by=overall_score&sort_order=desc
+    Authorization: Bearer <token>
     ```
     """
     try:
         with UnitOfWork() as uow:
             repo = AssessmentRepository(uow)
 
+            # Organization ID comes from JWT token (secure multi-tenant filtering)
             result = repo.get_dashboard_candidates(
-                organization_id=organization_id,
+                organization_id=current_user.organization_id,
                 job_position_id=job_position_id,
                 recommendation=recommendation,
                 status=status,
@@ -148,11 +154,14 @@ async def get_dashboard_candidates(
 
 @router.get("/stats", response_model=DashboardStatsResponse)
 async def get_dashboard_stats(
-    organization_id: Optional[str] = Query(None, description="Filter by organization UUID"),
+    current_user: TokenData = Depends(require_role("recruiter", "hiring_manager", "hr", "team_lead")),
     job_position_id: Optional[str] = Query(None, description="Filter by job position UUID")
 ):
     """
     Get summary statistics for recruiter dashboard.
+
+    **Authentication Required:** Bearer token with recruiter/hiring_manager/hr/team_lead role.
+    Organization is automatically filtered based on the authenticated user's organization.
 
     **Returns:**
     - Total interviews count
@@ -164,14 +173,16 @@ async def get_dashboard_stats(
     **Example:**
     ```
     GET /v1/dashboard/stats?job_position_id=uuid-here
+    Authorization: Bearer <token>
     ```
     """
     try:
         with UnitOfWork() as uow:
             repo = AssessmentRepository(uow)
 
+            # Organization ID comes from JWT token (secure multi-tenant filtering)
             stats = repo.get_dashboard_stats(
-                organization_id=organization_id,
+                organization_id=current_user.organization_id,
                 job_position_id=job_position_id
             )
 
@@ -191,12 +202,15 @@ async def get_dashboard_stats(
 
 @router.post("/generate-pending")
 async def generate_pending_assessments(
-    organization_id: Optional[str] = Query(None, description="Filter by organization UUID"),
+    current_user: TokenData = Depends(require_role("recruiter", "hiring_manager", "hr")),
     job_position_id: Optional[str] = Query(None, description="Filter by job position UUID"),
     limit: int = Query(10, ge=1, le=50, description="Maximum assessments to generate")
 ):
     """
     Trigger assessment generation for pending interviews.
+
+    **Authentication Required:** Bearer token with recruiter/hiring_manager/hr role.
+    Only processes interviews from the authenticated user's organization.
 
     This endpoint allows recruiters to manually trigger assessment generation
     for interviews that are completed but don't have assessments yet.
@@ -219,9 +233,10 @@ async def generate_pending_assessments(
             # Get pending interviews
             pending = repo.get_completed_interviews_without_assessment(limit=limit)
 
-            # Filter by organization/job if specified
-            if organization_id:
-                pending = [p for p in pending if str(p.get('organization_id')) == organization_id]
+            # Filter by user's organization (from JWT token - secure multi-tenant)
+            pending = [p for p in pending if str(p.get('organization_id')) == current_user.organization_id]
+
+            # Optionally filter by job position
             if job_position_id:
                 pending = [p for p in pending if str(p.get('job_position_id')) == job_position_id]
 
