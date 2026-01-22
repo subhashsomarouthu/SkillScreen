@@ -21,6 +21,9 @@ groq==0.13.0
 # Environment & Config
 python-dotenv==1.0.1
 
+# JWT Authentication
+python-jose[cryptography]==3.3.0
+
 # Logging & Monitoring
 structlog==24.4.0
 

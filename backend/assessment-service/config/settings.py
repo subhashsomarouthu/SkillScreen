@@ -51,6 +51,10 @@ class Settings(BaseSettings):
     
     # Health Check
     health_check_timeout_seconds: int = Field(default=30, alias="HEALTH_CHECK_TIMEOUT_SECONDS")
+
+    # JWT Configuration (must match SSO service)
+    jwt_secret_key: str = Field(default="supersecret", alias="JWT_SECRET_KEY")
+    jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
     
     class Config:
         env_file = ".env"

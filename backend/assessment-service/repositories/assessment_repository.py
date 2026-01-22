@@ -105,6 +105,19 @@ job_positions_table = Table(
     Column("deleted_at", DateTime),
 )
 
+candidates_table = Table(
+    "candidates",
+    metadata,
+    Column("id", UUID, primary_key=True),
+    Column("organization_id", UUID),
+    Column("email", String),
+    Column("name", String),
+    Column("phone", String),
+    Column("resume_url", String),
+    Column("created_at", DateTime),
+    Column("updated_at", DateTime),
+)
+
 
 # ==========================================
 # REPOSITORY CLASS
@@ -134,6 +147,24 @@ class AssessmentRepository(BaseRepository):
         """Helper to fetch all rows and convert to list of dicts"""
         result = self.session.execute(query)
         return [dict(row._mapping) for row in result]
+
+    def _parse_raw_results(self, raw_results) -> Dict:
+        """
+        Parse raw_results field, handling both dict and double-serialized string cases.
+
+        Some older records may have raw_results stored as JSON string instead of JSONB dict
+        due to incorrect use of json.dumps() when saving.
+        """
+        if raw_results is None:
+            return {}
+        if isinstance(raw_results, dict):
+            return raw_results
+        if isinstance(raw_results, str):
+            try:
+                return json.loads(raw_results)
+            except json.JSONDecodeError:
+                return {}
+        return {}
     
     # ==========================================
     # FIND READY INTERVIEWS
@@ -529,14 +560,18 @@ class AssessmentRepository(BaseRepository):
     # ==========================================
     # GET AI ANALYSIS RESULTS
     # ==========================================
-    
+
     def get_all_ai_analysis_for_interview(self, interview_id: str) -> List[Dict]:
         """Get all AI analysis results for an interview"""
         query = select(ai_analysis_table).where(
             ai_analysis_table.c.interview_id == interview_id
         ).order_by(ai_analysis_table.c.created_at)
 
-        return self._fetch_all(query)
+        results = self._fetch_all(query)
+        # Parse raw_results to handle double-serialized JSON from older records
+        for result in results:
+            result['raw_results'] = self._parse_raw_results(result.get('raw_results'))
+        return results
 
     def get_ai_analysis_by_service(
         self,
@@ -551,7 +586,11 @@ class AssessmentRepository(BaseRepository):
             )
         ).order_by(ai_analysis_table.c.created_at)
 
-        return self._fetch_all(query)
+        results = self._fetch_all(query)
+        # Parse raw_results to handle double-serialized JSON from older records
+        for result in results:
+            result['raw_results'] = self._parse_raw_results(result.get('raw_results'))
+        return results
     
     # ==========================================
     # INTERVIEW & JOB POSITION INFO
@@ -623,10 +662,265 @@ class AssessmentRepository(BaseRepository):
     def update_assessment(self, interview_id: str, data: Dict):
         """Update existing assessment"""
         data['updated_at'] = datetime.now(timezone.utc)
-        
+
         query = update(assessments_table).where(
             assessments_table.c.interview_id == interview_id
         ).values(**data)
-        
+
         self.session.execute(query)
         self.session.commit()
+
+    # ==========================================
+    # RECRUITER DASHBOARD METHODS
+    # ==========================================
+
+    def get_dashboard_candidates(
+        self,
+        organization_id: Optional[str] = None,
+        job_position_id: Optional[str] = None,
+        recommendation: Optional[str] = None,
+        status: Optional[str] = None,
+        min_score: Optional[float] = None,
+        max_score: Optional[float] = None,
+        page: int = 1,
+        page_size: int = 20,
+        sort_by: str = "created_at",
+        sort_order: str = "desc"
+    ) -> Dict:
+        """
+        Get candidates for recruiter dashboard with filtering and pagination.
+
+        Returns both assessed and pending candidates.
+
+        Args:
+            organization_id: Filter by organization
+            job_position_id: Filter by job position
+            recommendation: Filter by recommendation (hire, no_hire, maybe, needs_review)
+            status: Filter by status (assessed, pending, processing)
+            min_score: Minimum overall score filter
+            max_score: Maximum overall score filter
+            page: Page number (1-indexed)
+            page_size: Number of items per page
+            sort_by: Field to sort by (overall_score, created_at, name)
+            sort_order: Sort order (asc, desc)
+
+        Returns:
+            Dict with candidates list, pagination info, and summary stats
+        """
+        from sqlalchemy import func, case, literal_column
+        from sqlalchemy.sql import label
+
+        # Build base query joining interviews, candidates, job_positions, and assessments
+        base_query = (
+            select(
+                interviews_table.c.id.label("interview_id"),
+                interviews_table.c.candidate_id,
+                interviews_table.c.job_position_id,
+                interviews_table.c.status.label("interview_status"),
+                interviews_table.c.completed_at,
+                interviews_table.c.created_at.label("interview_created_at"),
+                candidates_table.c.name.label("candidate_name"),
+                candidates_table.c.email.label("candidate_email"),
+                job_positions_table.c.title.label("job_title"),
+                assessments_table.c.id.label("assessment_id"),
+                assessments_table.c.overall_score,
+                assessments_table.c.recommendation,
+                assessments_table.c.technical_score,
+                assessments_table.c.communication_score,
+                assessments_table.c.soft_skills_score,
+                assessments_table.c.proctoring_risk_score,
+                assessments_table.c.created_at.label("assessment_created_at"),
+            )
+            .select_from(interviews_table)
+            .outerjoin(candidates_table, interviews_table.c.candidate_id == candidates_table.c.id)
+            .outerjoin(job_positions_table, interviews_table.c.job_position_id == job_positions_table.c.id)
+            .outerjoin(assessments_table, interviews_table.c.id == assessments_table.c.interview_id)
+            .where(interviews_table.c.deleted_at.is_(None))
+        )
+
+        # Apply filters
+        if organization_id:
+            base_query = base_query.where(interviews_table.c.organization_id == organization_id)
+
+        if job_position_id:
+            base_query = base_query.where(interviews_table.c.job_position_id == job_position_id)
+
+        if recommendation:
+            base_query = base_query.where(assessments_table.c.recommendation == recommendation)
+
+        if status:
+            if status == "assessed":
+                base_query = base_query.where(assessments_table.c.id.isnot(None))
+            elif status == "pending":
+                base_query = base_query.where(
+                    and_(
+                        assessments_table.c.id.is_(None),
+                        interviews_table.c.status == "completed"
+                    )
+                )
+            elif status == "in_progress":
+                base_query = base_query.where(interviews_table.c.status == "in_progress")
+
+        if min_score is not None:
+            base_query = base_query.where(assessments_table.c.overall_score >= min_score)
+
+        if max_score is not None:
+            base_query = base_query.where(assessments_table.c.overall_score <= max_score)
+
+        # Get total count before pagination
+        count_query = select(func.count()).select_from(base_query.subquery())
+        total_count = self.session.execute(count_query).scalar() or 0
+
+        # Apply sorting
+        sort_column = {
+            "overall_score": assessments_table.c.overall_score,
+            "created_at": interviews_table.c.created_at,
+            "name": candidates_table.c.name,
+            "recommendation": assessments_table.c.recommendation,
+        }.get(sort_by, interviews_table.c.created_at)
+
+        if sort_order == "asc":
+            base_query = base_query.order_by(sort_column.asc().nullslast())
+        else:
+            base_query = base_query.order_by(sort_column.desc().nullsfirst())
+
+        # Apply pagination
+        offset = (page - 1) * page_size
+        base_query = base_query.offset(offset).limit(page_size)
+
+        # Execute query
+        results = self._fetch_all(base_query)
+
+        # Transform results
+        candidates = []
+        for row in results:
+            has_assessment = row.get("assessment_id") is not None
+            candidate_status = "assessed" if has_assessment else (
+                "pending" if row.get("interview_status") == "completed" else row.get("interview_status")
+            )
+
+            candidates.append({
+                "interview_id": str(row["interview_id"]) if row["interview_id"] else None,
+                "candidate_id": str(row["candidate_id"]) if row["candidate_id"] else None,
+                "candidate_name": row.get("candidate_name") or "Unknown",
+                "candidate_email": row.get("candidate_email"),
+                "job_position_id": str(row["job_position_id"]) if row["job_position_id"] else None,
+                "job_title": row.get("job_title") or "Unknown Position",
+                "status": candidate_status,
+                "interview_completed_at": row["completed_at"].isoformat() if row.get("completed_at") else None,
+                "assessment": {
+                    "id": str(row["assessment_id"]) if row.get("assessment_id") else None,
+                    "overall_score": float(row["overall_score"]) if row.get("overall_score") else None,
+                    "recommendation": row.get("recommendation"),
+                    "technical_score": float(row["technical_score"]) if row.get("technical_score") else None,
+                    "communication_score": float(row["communication_score"]) if row.get("communication_score") else None,
+                    "soft_skills_score": float(row["soft_skills_score"]) if row.get("soft_skills_score") else None,
+                    "proctoring_risk_score": float(row["proctoring_risk_score"]) if row.get("proctoring_risk_score") else None,
+                    "created_at": row["assessment_created_at"].isoformat() if row.get("assessment_created_at") else None,
+                } if has_assessment else None
+            })
+
+        # Calculate pagination info
+        total_pages = (total_count + page_size - 1) // page_size
+
+        return {
+            "candidates": candidates,
+            "pagination": {
+                "page": page,
+                "page_size": page_size,
+                "total_count": total_count,
+                "total_pages": total_pages,
+                "has_next": page < total_pages,
+                "has_previous": page > 1
+            }
+        }
+
+    def get_dashboard_stats(self, organization_id: Optional[str] = None, job_position_id: Optional[str] = None) -> Dict:
+        """
+        Get summary statistics for recruiter dashboard.
+
+        Args:
+            organization_id: Filter by organization
+            job_position_id: Filter by job position
+
+        Returns:
+            Dict with summary statistics
+        """
+        from sqlalchemy import func
+
+        # Base filters
+        interview_filter = [interviews_table.c.deleted_at.is_(None)]
+        if organization_id:
+            interview_filter.append(interviews_table.c.organization_id == organization_id)
+        if job_position_id:
+            interview_filter.append(interviews_table.c.job_position_id == job_position_id)
+
+        # Total interviews
+        total_query = select(func.count(interviews_table.c.id)).where(and_(*interview_filter))
+        total_interviews = self.session.execute(total_query).scalar() or 0
+
+        # Completed interviews
+        completed_query = select(func.count(interviews_table.c.id)).where(
+            and_(*interview_filter, interviews_table.c.status == "completed")
+        )
+        completed_interviews = self.session.execute(completed_query).scalar() or 0
+
+        # Interviews with assessments
+        assessed_query = (
+            select(func.count(interviews_table.c.id))
+            .select_from(interviews_table)
+            .join(assessments_table, interviews_table.c.id == assessments_table.c.interview_id)
+            .where(and_(*interview_filter))
+        )
+        assessed_count = self.session.execute(assessed_query).scalar() or 0
+
+        # Pending (completed but no assessment)
+        pending_count = completed_interviews - assessed_count
+
+        # Recommendation breakdown
+        recommendation_query = (
+            select(
+                assessments_table.c.recommendation,
+                func.count(assessments_table.c.id).label("count")
+            )
+            .select_from(assessments_table)
+            .join(interviews_table, assessments_table.c.interview_id == interviews_table.c.id)
+            .where(and_(*interview_filter))
+            .group_by(assessments_table.c.recommendation)
+        )
+        recommendation_results = self.session.execute(recommendation_query).fetchall()
+        recommendations = {row[0]: row[1] for row in recommendation_results}
+
+        # Average scores
+        avg_query = (
+            select(
+                func.avg(assessments_table.c.overall_score).label("avg_overall"),
+                func.avg(assessments_table.c.technical_score).label("avg_technical"),
+                func.avg(assessments_table.c.communication_score).label("avg_communication"),
+                func.avg(assessments_table.c.soft_skills_score).label("avg_soft_skills"),
+            )
+            .select_from(assessments_table)
+            .join(interviews_table, assessments_table.c.interview_id == interviews_table.c.id)
+            .where(and_(*interview_filter))
+        )
+        avg_result = self.session.execute(avg_query).fetchone()
+
+        return {
+            "total_interviews": total_interviews,
+            "completed_interviews": completed_interviews,
+            "assessed_count": assessed_count,
+            "pending_count": pending_count,
+            "in_progress_count": total_interviews - completed_interviews,
+            "recommendations": {
+                "hire": recommendations.get("hire", 0),
+                "no_hire": recommendations.get("no_hire", 0),
+                "maybe": recommendations.get("maybe", 0),
+                "needs_review": recommendations.get("needs_review", 0),
+            },
+            "average_scores": {
+                "overall": round(float(avg_result[0]), 2) if avg_result and avg_result[0] else None,
+                "technical": round(float(avg_result[1]), 2) if avg_result and avg_result[1] else None,
+                "communication": round(float(avg_result[2]), 2) if avg_result and avg_result[2] else None,
+                "soft_skills": round(float(avg_result[3]), 2) if avg_result and avg_result[3] else None,
+            }
+        }

@@ -46,11 +46,16 @@ services:
       context: ./backend/user-service
       dockerfile: Dockerfile
     container_name: user-service
+    ports:
+      - "8007:8080"
     environment:
       PORT: 8080
       HOST: 0.0.0.0
       DATABASE_URL: postgresql://postgres:postgres@host.docker.internal:5432/skillscreen_database
       PYTHONPATH: /app:/common-service
+      # JWT Configuration (must match SSO service)
+      SECRET_KEY: supersecret
+      ALGORITHM: HS256
       # logging
       ENV: dev
       LOG_LEVEL: DEBUG
@@ -275,14 +280,18 @@ services:
       context: ./backend/sso-service
       dockerfile: Dockerfile
     container_name: sso-service
+    ports:
+      - "8001:8080"
     environment:
       PORT: 8080
       HOST: 0.0.0.0
       SECRET_KEY: supersecret
       ALGORITHM: HS256
       DATABASE_URL: postgresql://postgres:postgres@host.docker.internal:5432/skillscreen_database
+      PYTHONPATH: /app:/common-service
     volumes:
       - ./backend/sso-service:/app
+      - ./backend/common-service:/common-service
     networks:
       - skill-screen-network
 
