@@ -1,0 +1,4 @@
+{
+  "code": "n = int(input())\nnums = list(map(int, input().split()))\ntarget = int(input())\nseen = {}\nfor i, num in enumerate(nums):\n    complement = target - num\n    if complement in seen:\n        print(seen[complement], i)\n        break\n    seen[num] = i",
+  "language": "python"
+}

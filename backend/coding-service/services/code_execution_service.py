@@ -174,8 +174,8 @@ class CodeExecutionService:
 
         for tc in test_cases:
             tc_id = tc.get("id", "")
-            tc_input = tc.get("input", "")
-            expected_output = tc.get("expectedOutput", "")
+            tc_input = tc.get("input", "").replace("\\n", "\n")
+            expected_output = tc.get("expectedOutput", "").replace("\\n", "\n")
             weight = float(tc.get("weight", 1.0))
 
             result = await self._call_judge0(

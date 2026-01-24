@@ -5,5 +5,6 @@ from . import (
     resume_controller,
     interview_controller,
     question_controller,
-    assessment_controller
+    assessment_controller,
+    coding_controller
 )

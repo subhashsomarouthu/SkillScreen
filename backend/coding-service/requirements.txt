@@ -4,3 +4,10 @@ python-dotenv==1.0.0
 httpx==0.27.0
 seqlog==0.3.31
 python-json-logger==2.0.7
+# Database
+sqlalchemy==2.0.23
+psycopg2-binary==2.9.9
+# Auth
+python-jose[cryptography]==3.3.0
+# Settings
+pydantic-settings==2.1.0
