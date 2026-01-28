@@ -20,6 +20,15 @@ class TokenData(BaseModel):
     last_name: Optional[str] = None
 
 
+class CandidateTokenData(BaseModel):
+    """Token data for candidates (may have limited info from interview token)"""
+    user_id: Optional[str] = None
+    email: Optional[str] = None
+    organization_id: Optional[str] = None
+    role: str = "candidate"
+    is_candidate: bool = True
+
+
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ) -> TokenData:
@@ -82,3 +91,66 @@ def require_role(*allowed_roles: str):
         return current_user
 
     return role_checker
+
+
+async def get_current_user_or_candidate(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+) -> TokenData | CandidateTokenData:
+    """
+    Dependency that accepts either:
+    1. A valid JWT token (returns TokenData)
+    2. An interview token for candidates (returns CandidateTokenData)
+
+    Use this for endpoints that both recruiters and candidates can access.
+    """
+    try:
+        token = credentials.credentials
+
+        # Try to decode as JWT first
+        try:
+            payload = jwt.decode(
+                token,
+                settings.jwt_secret_key,
+                algorithms=[settings.jwt_algorithm]
+            )
+
+            user_id: str = payload.get("sub")
+            email: str = payload.get("email")
+            organization_id: str = payload.get("organization_id")
+            role: str = payload.get("role")
+
+            if all([user_id, email, organization_id, role]):
+                return TokenData(
+                    user_id=user_id,
+                    email=email,
+                    organization_id=organization_id,
+                    role=role,
+                    first_name=payload.get("first_name"),
+                    last_name=payload.get("last_name")
+                )
+        except JWTError:
+            pass  # Not a valid JWT, might be an interview token
+
+        # If JWT decode failed, assume it's a candidate interview token
+        # Interview tokens are simple strings validated elsewhere
+        # For candidate endpoints, we just need to verify a token exists
+        if token and len(token) > 10:  # Basic check for non-empty token
+            return CandidateTokenData(
+                role="candidate",
+                is_candidate=True
+            )
+
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication failed",
+            headers={"WWW-Authenticate": "Bearer"},
+        )

@@ -14,7 +14,7 @@ from utilities.logger import init_logger
 
 from utils.response import create_response
 from repositories.coding_repository import CodingRepository
-from config.auth import get_current_user, require_role, TokenData
+from config.auth import get_current_user, get_current_user_or_candidate, require_role, TokenData, CandidateTokenData
 
 
 router = APIRouter(prefix="/v1/questions", tags=["Coding Questions"])
@@ -342,10 +342,11 @@ async def delete_question(
 @router.get("/interview/{question_id}")
 async def get_question_for_candidate(
     question_id: str,
-    current_user: TokenData = Depends(get_current_user)
+    current_user: TokenData | CandidateTokenData = Depends(get_current_user_or_candidate)
 ):
     """
     Get a coding question for a candidate during interview.
+    Accepts both recruiter JWT tokens and candidate interview tokens.
     Does NOT include solution or hidden test cases.
     """
     try:
