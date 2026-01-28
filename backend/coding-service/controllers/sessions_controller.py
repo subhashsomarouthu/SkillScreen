@@ -15,7 +15,7 @@ from utilities.logger import init_logger
 from utils.response import create_response
 from repositories.coding_repository import CodingRepository
 from services.code_execution_service import CodeExecutionService
-from config.auth import get_current_user, require_role, TokenData
+from config.auth import get_current_user, get_current_user_or_candidate, require_role, TokenData, CandidateTokenData
 
 
 router = APIRouter(prefix="/v1/sessions", tags=["Coding Sessions"])
@@ -124,10 +124,11 @@ def _get_visible_test_cases(test_cases: List[Dict]) -> List[Dict]:
 @router.post("", status_code=201)
 async def start_session(
     request: StartSessionRequest,
-    current_user: TokenData = Depends(get_current_user)
+    current_user: TokenData | CandidateTokenData = Depends(get_current_user_or_candidate)
 ):
     """
     Start a new coding session for an interview.
+    Accepts both recruiter JWT tokens and candidate interview tokens.
 
     **Request:**
     ```json
@@ -217,7 +218,7 @@ async def start_session(
 @router.get("/{session_id}")
 async def get_session(
     session_id: str,
-    current_user: TokenData = Depends(get_current_user)
+    current_user: TokenData | CandidateTokenData = Depends(get_current_user_or_candidate)
 ):
     """
     Get a coding session by ID.
@@ -243,7 +244,7 @@ async def get_session(
 async def save_code(
     session_id: str,
     request: SaveCodeRequest,
-    current_user: TokenData = Depends(get_current_user)
+    current_user: TokenData | CandidateTokenData = Depends(get_current_user_or_candidate)
 ):
     """
     Auto-save code progress.
@@ -277,7 +278,7 @@ async def save_code(
 async def run_code(
     session_id: str,
     request: RunCodeRequest,
-    current_user: TokenData = Depends(get_current_user)
+    current_user: TokenData | CandidateTokenData = Depends(get_current_user_or_candidate)
 ):
     """
     Run code with custom input (for testing).
@@ -321,7 +322,7 @@ async def run_code(
 async def test_against_visible(
     session_id: str,
     request: RunCodeRequest,
-    current_user: TokenData = Depends(get_current_user)
+    current_user: TokenData | CandidateTokenData = Depends(get_current_user_or_candidate)
 ):
     """
     Test code against visible test cases only.
@@ -376,7 +377,7 @@ async def test_against_visible(
 async def submit_code(
     session_id: str,
     request: SubmitCodeRequest,
-    current_user: TokenData = Depends(get_current_user)
+    current_user: TokenData | CandidateTokenData = Depends(get_current_user_or_candidate)
 ):
     """
     Submit code for final evaluation against ALL test cases.
@@ -547,10 +548,12 @@ async def get_coding_stats(
 @router.post("/interview/{interview_id}/complete")
 async def complete_coding_round(
     interview_id: str,
-    current_user: TokenData = Depends(get_current_user)
+    current_user: TokenData | CandidateTokenData = Depends(get_current_user_or_candidate)
 ):
     """
     Complete the coding round for an interview.
+
+    Accepts both recruiter JWT tokens and candidate interview tokens.
 
     This endpoint:
     1. Gets all submitted coding sessions for the interview

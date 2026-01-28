@@ -1,16 +1,20 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mic, MicOff, Video, VideoOff, Monitor, Circle, X, Maximize2, MessageSquare, FileText } from 'lucide-react';
 import CodingChallenge from './CodingChallenge';
+import CodingTransitionScreen from './CodingTransitionScreen';
 import QuestionModal from './QuestionModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiClient } from '@/lib/api';
 import { getDemoInterviewQuestions } from '@/lib/demoHelpers';
 import { API_BASE_URL } from '@/lib/config';
 import { getInterviewToken } from '@/lib/interviewToken';
+
+// Interview stage types
+type InterviewStage = 'video' | 'transition' | 'coding' | 'completed';
 
 interface ModernInterviewScreenProps {
   participantName: string;
@@ -39,6 +43,11 @@ export default function ModernInterviewScreen({ participantName, fromToken = fal
   const [interviewStatus, setInterviewStatus] = useState<'continue' | 'completed'>('continue');
   const [isLoadingQuestion, setIsLoadingQuestion] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Coding stage state
+  const [interviewStage, setInterviewStage] = useState<InterviewStage>('video');
+  const [codingQuestionIds, setCodingQuestionIds] = useState<string[]>([]);
+  const [codingLanguage, setCodingLanguage] = useState<string>('python');
   
   // Media recording refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -710,9 +719,24 @@ export default function ModernInterviewScreen({ participantName, fromToken = fal
           audioRef.current.src = `${API_BASE_URL}${data.audio_download_url}`;
           audioRef.current.play().catch(err => console.error('Audio playback failed:', err));
         }
+      } else if (data.status === 'coding_stage') {
+        // Transition to coding stage
+        console.log('🔄 Transitioning to coding stage');
+        console.log('📝 Coding question IDs:', data.coding_question_ids);
+
+        // Store coding question IDs and language preference
+        setCodingQuestionIds(data.coding_question_ids || []);
+        if (data.language) {
+          setCodingLanguage(data.language);
+        }
+
+        // Clear current question and show transition screen
+        setCurrentQuestion(null);
+        setInterviewStage('transition');
       } else if (data.status === 'completed') {
-        // Interview completed
+        // Interview completed (no coding round)
         setInterviewStatus('completed');
+        setInterviewStage('completed');
         console.log('✅ Interview completed!');
         console.log('📊 Summary:', data.summary);
       }
@@ -732,31 +756,74 @@ export default function ModernInterviewScreen({ participantName, fromToken = fal
     }
   };
 
+  // Handler for starting coding after transition
+  const handleStartCoding = useCallback(() => {
+    console.log('🚀 Starting coding stage');
+    setInterviewStage('coding');
+  }, []);
+
+  // Handler for when coding is completed
+  const handleCodingComplete = useCallback(async () => {
+    console.log('✅ Coding stage completed');
+
+    // Call the complete coding round endpoint
+    try {
+      const tokenData = getInterviewToken();
+      const token = tokenData?.token || getToken();
+
+      const response = await fetch(`${API_BASE_URL}/orchestration/api/coding/interviews/${interviewId}/complete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        }
+      });
+
+      const data = await response.json();
+      console.log('📊 Coding complete response:', data);
+
+      if (data.success) {
+        // Update to completed state
+        setInterviewStatus('completed');
+        setInterviewStage('completed');
+      } else {
+        console.error('Failed to complete coding round:', data);
+        alert('Failed to complete coding round. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error completing coding round:', error);
+      alert('Error completing coding round. Please try again.');
+    }
+  }, [interviewId, getToken]);
+
   return (
     <div className="absolute inset-0 flex flex-col">
-      {/* Interview Status Bar */}
-      <div className="absolute top-6 left-0 right-0 flex justify-center z-10">
-        <motion.div 
-          initial={{ y: -50, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          className="glass-dark rounded-xl shadow-lg flex items-center"
-        >
-          <div className="px-4 py-2 flex items-center space-x-3 border-r border-white/10">
-            <div className={`w-2 h-2 rounded-full animate-pulse ${isRecording ? 'bg-red-400' : 'bg-green-400'}`} />
-            <span className="text-white/80 text-sm font-medium">
-              {isRecording ? 'Recording in Progress' : 'Interview in Progress'}
-            </span>
-          </div>
-          <button 
-            className="px-4 py-2 text-white/90 text-sm font-medium hover:bg-red-500/20 transition-all rounded-r-xl disabled:opacity-50 disabled:cursor-not-allowed"
-            onClick={stopRecording}
+      {/* Interview Status Bar - Only show during video stage */}
+      {interviewStage === 'video' && (
+        <div className="absolute top-6 left-0 right-0 flex justify-center z-10">
+          <motion.div
+            initial={{ y: -50, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            className="glass-dark rounded-xl shadow-lg flex items-center"
           >
-            End Interview
-          </button>
-        </motion.div>
-      </div>
+            <div className="px-4 py-2 flex items-center space-x-3 border-r border-white/10">
+              <div className={`w-2 h-2 rounded-full animate-pulse ${isRecording ? 'bg-red-400' : 'bg-green-400'}`} />
+              <span className="text-white/80 text-sm font-medium">
+                {isRecording ? 'Recording in Progress' : 'Interview in Progress'}
+              </span>
+            </div>
+            <button
+              className="px-4 py-2 text-white/90 text-sm font-medium hover:bg-red-500/20 transition-all rounded-r-xl disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={stopRecording}
+            >
+              End Interview
+            </button>
+          </motion.div>
+        </div>
+      )}
 
-      {/* Main Content Area */}
+      {/* Main Content Area - Only show during video stage */}
+      {interviewStage === 'video' && (
       <div className="flex-1 relative pt-24">
         <AnimatePresence>
           {!isCodeEditorOpen ? (
@@ -861,8 +928,10 @@ export default function ModernInterviewScreen({ participantName, fromToken = fal
           )}
         </AnimatePresence>
       </div>
+      )}
 
-        {/* Control Bar */}
+        {/* Control Bar - Only show during video stage */}
+        {interviewStage === 'video' && (
         <div className="fixed bottom-8 left-0 right-0 flex justify-center z-50">
           <motion.div 
             initial={{ y: 50, opacity: 0 }}
@@ -925,10 +994,11 @@ export default function ModernInterviewScreen({ participantName, fromToken = fal
           </button>
         </motion.div>
       </div>
+        )}
 
-      {/* Chat Sidebar */}
+      {/* Chat Sidebar - Only show during video stage */}
       <AnimatePresence>
-        {isChatOpen && (
+        {isChatOpen && interviewStage === 'video' && (
           <motion.div
             initial={{ x: 400 }}
             animate={{ x: 0 }}
@@ -978,6 +1048,32 @@ export default function ModernInterviewScreen({ participantName, fromToken = fal
 
       {/* Hidden Audio Element for TTS Playback */}
       <audio ref={audioRef} style={{ display: 'none' }} />
+
+      {/* Coding Transition Screen */}
+      {interviewStage === 'transition' && (
+        <CodingTransitionScreen
+          onStartCoding={handleStartCoding}
+          questionCount={codingQuestionIds.length}
+        />
+      )}
+
+      {/* Full-screen Coding Challenge */}
+      {interviewStage === 'coding' && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 z-40 bg-gray-900"
+        >
+          <CodingChallenge
+            userType="candidate"
+            participantName={participantName}
+            interviewId={interviewId}
+            codingQuestionIds={codingQuestionIds}
+            language={codingLanguage}
+            onComplete={handleCodingComplete}
+          />
+        </motion.div>
+      )}
 
       {/* Question Modal - Show current question only */}
       <QuestionModal
@@ -1035,8 +1131,8 @@ export default function ModernInterviewScreen({ participantName, fromToken = fal
         </motion.div>
       )}
 
-      {/* Current Question Display (Always Visible) */}
-      {currentQuestion && interviewStatus === 'continue' && (
+      {/* Current Question Display - Only show during video stage */}
+      {currentQuestion && interviewStatus === 'continue' && interviewStage === 'video' && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1073,8 +1169,8 @@ export default function ModernInterviewScreen({ participantName, fromToken = fal
         </motion.div>
       )}
 
-      {/* Next/Submit Button */}
-      {currentQuestion && isRecording && (
+      {/* Next/Submit Button - Only show during video stage */}
+      {currentQuestion && isRecording && interviewStage === 'video' && (
         <motion.div
           initial={{ opacity: 0, y: 50 }}
           animate={{ opacity: 1, y: 0 }}

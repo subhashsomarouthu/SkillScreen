@@ -19,6 +19,12 @@ class AssignQuestionsRequest(BaseModel):
     question_ids: List[str]
 
 
+class StartCodingSessionRequest(BaseModel):
+    interview_id: str
+    question_id: str
+    language: str = "python"
+
+
 router = APIRouter()
 
 
@@ -69,11 +75,32 @@ async def get_available_questions(
         raise HTTPException(status_code=500, detail=f"Failed to get questions: {str(e)}")
 
 
+@router.get("/questions/{question_id}")
+async def get_question_for_candidate(
+    question_id: str,
+    authorization: str = Header(None)
+):
+    """
+    Get a specific coding question for a candidate during interview.
+    Does NOT include solution or hidden test cases.
+    """
+    token = _extract_token(authorization)
+
+    try:
+        logger.info(f"Getting coding question {question_id} for candidate")
+        result = await service_client.get_coding_question_for_candidate(token, question_id)
+        return create_response(
+            data=result.get("data", {}),
+            message="Coding question retrieved"
+        )
+    except Exception as e:
+        logger.error(f"Failed to get coding question: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get question: {str(e)}")
+
+
 @router.post("/sessions/start")
 async def start_coding_stage(
-    interview_id: str,
-    question_id: str,
-    language: str = "python",
+    request: StartCodingSessionRequest,
     authorization: str = Header(None)
 ):
     """
@@ -85,13 +112,13 @@ async def start_coding_stage(
     token = _extract_token(authorization)
 
     try:
-        logger.info(f"Starting coding session: interview={interview_id}, question={question_id}")
+        logger.info(f"Starting coding session: interview={request.interview_id}, question={request.question_id}")
 
         result = await service_client.start_coding_session(
             auth_token=token,
-            interview_id=interview_id,
-            question_id=question_id,
-            language=language
+            interview_id=request.interview_id,
+            question_id=request.question_id,
+            language=request.language
         )
 
         session_data = result.get("data", {})
@@ -126,6 +153,102 @@ async def get_coding_session(
     except Exception as e:
         logger.error(f"Failed to get coding session: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to get session: {str(e)}")
+
+
+class RunCodeRequest(BaseModel):
+    code: str
+    language: str = "python"
+    stdin: str = ""
+
+
+class SubmitCodeRequest(BaseModel):
+    code: str
+    language: str = "python"
+
+
+@router.post("/sessions/{session_id}/run")
+async def run_code(
+    session_id: str,
+    request: RunCodeRequest,
+    authorization: str = Header(None)
+):
+    """
+    Run code with custom input for testing.
+    """
+    token = _extract_token(authorization)
+
+    try:
+        logger.info(f"Running code for session {session_id}")
+        result = await service_client.run_code(
+            auth_token=token,
+            session_id=session_id,
+            code=request.code,
+            language=request.language,
+            stdin=request.stdin
+        )
+        return create_response(
+            data=result.get("data", {}),
+            message="Code executed"
+        )
+    except Exception as e:
+        logger.error(f"Failed to run code: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to run code: {str(e)}")
+
+
+@router.post("/sessions/{session_id}/test")
+async def test_code(
+    session_id: str,
+    request: RunCodeRequest,
+    authorization: str = Header(None)
+):
+    """
+    Test code against visible test cases.
+    """
+    token = _extract_token(authorization)
+
+    try:
+        logger.info(f"Testing code for session {session_id}")
+        result = await service_client.test_code(
+            auth_token=token,
+            session_id=session_id,
+            code=request.code,
+            language=request.language
+        )
+        return create_response(
+            data=result.get("data", {}),
+            message="Code tested"
+        )
+    except Exception as e:
+        logger.error(f"Failed to test code: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to test code: {str(e)}")
+
+
+@router.post("/sessions/{session_id}/submit")
+async def submit_code(
+    session_id: str,
+    request: SubmitCodeRequest,
+    authorization: str = Header(None)
+):
+    """
+    Submit code for final evaluation against ALL test cases.
+    """
+    token = _extract_token(authorization)
+
+    try:
+        logger.info(f"Submitting code for session {session_id}")
+        result = await service_client.submit_code(
+            auth_token=token,
+            session_id=session_id,
+            code=request.code,
+            language=request.language
+        )
+        return create_response(
+            data=result.get("data", {}),
+            message="Code submitted"
+        )
+    except Exception as e:
+        logger.error(f"Failed to submit code: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to submit code: {str(e)}")
 
 
 @router.post("/interviews/{interview_id}/assign-questions")

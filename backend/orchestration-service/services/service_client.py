@@ -5,7 +5,7 @@ Service Client - HTTP client for calling other microservices
 import httpx
 import os
 from typing import Dict, Any, Optional
-from config import logger
+from config.logger import logger
 
 # Service URLs from environment variables
 SERVICE_URLS = {
@@ -278,6 +278,19 @@ class ServiceClient:
             headers={"Authorization": f"Bearer {auth_token}"}
         )
 
+    async def get_coding_question_for_candidate(
+        self,
+        auth_token: str,
+        question_id: str
+    ) -> Dict[str, Any]:
+        """Get a single coding question for a candidate (no solution or hidden test cases)"""
+        return await self._request(
+            "GET",
+            "coding_service",
+            f"/v1/questions/interview/{question_id}",
+            headers={"Authorization": f"Bearer {auth_token}"}
+        )
+
     async def start_coding_session(
         self,
         auth_token: str,
@@ -321,6 +334,65 @@ class ServiceClient:
             "GET",
             "coding_service",
             f"/v1/sessions/interview/{interview_id}",
+            headers={"Authorization": f"Bearer {auth_token}"}
+        )
+
+    async def run_code(
+        self,
+        auth_token: str,
+        session_id: str,
+        code: str,
+        language: str = "python",
+        stdin: str = ""
+    ) -> Dict[str, Any]:
+        """Run code with optional stdin input"""
+        return await self._request(
+            "POST",
+            "coding_service",
+            f"/v1/sessions/{session_id}/run",
+            data={
+                "code": code,
+                "language": language,
+                "stdin": stdin
+            },
+            headers={"Authorization": f"Bearer {auth_token}"}
+        )
+
+    async def test_code(
+        self,
+        auth_token: str,
+        session_id: str,
+        code: str,
+        language: str = "python"
+    ) -> Dict[str, Any]:
+        """Test code against visible test cases"""
+        return await self._request(
+            "POST",
+            "coding_service",
+            f"/v1/sessions/{session_id}/test",
+            data={
+                "code": code,
+                "language": language
+            },
+            headers={"Authorization": f"Bearer {auth_token}"}
+        )
+
+    async def submit_code(
+        self,
+        auth_token: str,
+        session_id: str,
+        code: str,
+        language: str = "python"
+    ) -> Dict[str, Any]:
+        """Submit code for final evaluation against all test cases"""
+        return await self._request(
+            "POST",
+            "coding_service",
+            f"/v1/sessions/{session_id}/submit",
+            data={
+                "code": code,
+                "language": language
+            },
             headers={"Authorization": f"Bearer {auth_token}"}
         )
 
