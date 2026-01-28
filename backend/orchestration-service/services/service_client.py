@@ -324,6 +324,22 @@ class ServiceClient:
             headers={"Authorization": f"Bearer {auth_token}"}
         )
 
+    async def complete_coding_round(
+        self,
+        auth_token: str,
+        interview_id: str
+    ) -> Dict[str, Any]:
+        """
+        Complete the coding round for an interview.
+        Saves coding results to ai_analysis and marks interview as completed.
+        """
+        return await self._request(
+            "POST",
+            "coding_service",
+            f"/v1/sessions/interview/{interview_id}/complete",
+            headers={"Authorization": f"Bearer {auth_token}"}
+        )
+
     # ============================================
     # Assessment Service Methods
     # ============================================

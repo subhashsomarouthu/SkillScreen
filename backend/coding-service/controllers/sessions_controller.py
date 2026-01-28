@@ -476,8 +476,10 @@ async def submit_code(
     except HTTPException:
         raise
     except Exception as e:
-        log.error("submit_code_error", exc_info=e)
-        raise HTTPException(500, f"Failed to submit code: {str(e)}")
+        import traceback
+        error_details = f"{type(e).__name__}: {str(e)}"
+        log.error("submit_code_error", extra={"error": error_details, "traceback": traceback.format_exc()})
+        raise HTTPException(500, f"Failed to submit code: {error_details}")
 
 
 # ==========================================
@@ -536,3 +538,98 @@ async def get_coding_stats(
     except Exception as e:
         log.error("get_coding_stats_error", exc_info=e)
         raise HTTPException(500, f"Failed to get stats: {str(e)}")
+
+
+# ==========================================
+# INTERVIEW COMPLETION ENDPOINT
+# ==========================================
+
+@router.post("/interview/{interview_id}/complete")
+async def complete_coding_round(
+    interview_id: str,
+    current_user: TokenData = Depends(get_current_user)
+):
+    """
+    Complete the coding round for an interview.
+
+    This endpoint:
+    1. Gets all submitted coding sessions for the interview
+    2. Saves coding results to ai_analysis table for assessment integration
+    3. Updates interview status to 'completed'
+
+    Should be called when candidate finishes all coding questions.
+    """
+    try:
+        with UnitOfWork() as uow:
+            repo = CodingRepository(uow)
+
+            # Get all sessions for this interview
+            sessions = repo.get_sessions_by_interview(interview_id)
+
+            if not sessions:
+                raise HTTPException(404, "No coding sessions found for this interview")
+
+            # Check all sessions are submitted
+            submitted_sessions = [s for s in sessions if s.get("submitted_at")]
+            if len(submitted_sessions) < len(sessions):
+                unsubmitted = len(sessions) - len(submitted_sessions)
+                raise HTTPException(
+                    400,
+                    f"Cannot complete: {unsubmitted} coding session(s) not yet submitted"
+                )
+
+            # Save each session's results to ai_analysis for assessment
+            saved_analyses = []
+            for session in submitted_sessions:
+                # Check if already saved
+                if repo.check_coding_analysis_exists(interview_id, session["id"]):
+                    log.info(f"Coding analysis already exists for session {session['id']}")
+                    continue
+
+                # Get question title for reference
+                question = repo.get_question(session["question_id"])
+                question_title = question.get("title") if question else "Unknown"
+
+                # Save to ai_analysis
+                execution_results = session.get("execution_results", {})
+                analysis_id = repo.save_coding_to_ai_analysis(
+                    interview_id=interview_id,
+                    coding_session_id=session["id"],
+                    execution_results=execution_results,
+                    is_correct=session.get("is_correct", False),
+                    question_title=question_title
+                )
+                saved_analyses.append(analysis_id)
+                log.info(f"Saved coding analysis {analysis_id} for session {session['id']}")
+
+            # Update interview status to completed
+            repo.update_interview_status(interview_id, "completed")
+
+            # Calculate summary
+            correct_count = sum(1 for s in submitted_sessions if s.get("is_correct"))
+            total_count = len(submitted_sessions)
+            avg_score = sum(
+                s.get("execution_results", {}).get("score", 0) * 100
+                for s in submitted_sessions
+            ) / total_count if total_count > 0 else 0
+
+            log.info(f"Completed coding round for interview {interview_id}: "
+                    f"{correct_count}/{total_count} correct, avg score: {avg_score:.1f}")
+
+            return create_response({
+                "interview_id": interview_id,
+                "status": "completed",
+                "coding_summary": {
+                    "total_questions": total_count,
+                    "correct_answers": correct_count,
+                    "average_score": round(avg_score, 1),
+                    "analyses_saved": len(saved_analyses)
+                },
+                "message": "Coding round completed. Interview ready for assessment."
+            })
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        log.error("complete_coding_round_error", exc_info=e)
+        raise HTTPException(500, f"Failed to complete coding round: {str(e)}")

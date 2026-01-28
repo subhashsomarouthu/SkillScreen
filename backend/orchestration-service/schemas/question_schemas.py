@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from uuid import UUID
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 
 class NextQuestionRequest(BaseModel):
     interview_id: UUID
@@ -10,7 +10,7 @@ class NextQuestionRequest(BaseModel):
     response_time_seconds: float = 0.0
 
 class NextQuestionResponse(BaseModel):
-    status: str
+    status: str  # "continue", "completed", "coding_stage"
     next_question_text: Optional[str] = None
     next_question_id: Optional[str] = None
     audio_download_url: Optional[str] = None
@@ -20,3 +20,6 @@ class NextQuestionResponse(BaseModel):
     audio_ai_triggered: bool = False
     video_ai_triggered: bool = False
     error: Optional[str] = None
+    # Coding stage transition fields
+    next_stage: Optional[str] = None  # "coding" when transitioning
+    coding_question_ids: Optional[List[str]] = None

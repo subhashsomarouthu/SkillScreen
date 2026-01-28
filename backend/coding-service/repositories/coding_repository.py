@@ -52,6 +52,27 @@ coding_sessions_table = Table(
     Column("created_at", DateTime, default=datetime.utcnow),
 )
 
+ai_analysis_table = Table(
+    "ai_analysis", metadata,
+    Column("id", UUID, primary_key=True),
+    Column("interview_id", UUID),
+    Column("session_id", UUID),
+    Column("analysis_type", String),
+    Column("service_name", String),
+    Column("raw_results", JSONB),
+    Column("confidence_score", Float),
+    Column("processing_time", Integer),
+    Column("version", String),
+    Column("created_at", DateTime),
+)
+
+interviews_table = Table(
+    "interviews", metadata,
+    Column("id", UUID, primary_key=True),
+    Column("status", String),
+    Column("completed_at", DateTime),
+)
+
 
 class CodingRepository:
     """Repository for coding questions and sessions database operations"""
@@ -429,3 +450,96 @@ class CodingRepository:
             "correct_submissions": correct,
             "success_rate": round(correct / submitted * 100, 1) if submitted > 0 else 0
         }
+
+    # ==========================================
+    # AI ANALYSIS METHODS (for assessment integration)
+    # ==========================================
+
+    def save_coding_to_ai_analysis(
+        self,
+        interview_id: str,
+        coding_session_id: str,
+        execution_results: Dict[str, Any],
+        is_correct: bool,
+        question_title: str = None
+    ) -> str:
+        """
+        Save coding session results to ai_analysis table for assessment integration.
+
+        Converts coding session results to the format expected by assessment service:
+        - execution_results.correctness_score (0-100 scale)
+        - execution_results.test_cases_passed
+        - execution_results.test_cases_total
+        """
+        analysis_id = uuid.uuid4()
+        now = datetime.utcnow()
+
+        # Convert Judge0 results to assessment-compatible format
+        score = execution_results.get('score', 0) * 100  # Convert 0-1 to 0-100
+        passed_count = sum(1 for r in execution_results.get('results', []) if r.get('passed'))
+        total_count = len(execution_results.get('results', []))
+
+        raw_results = {
+            'execution_results': {
+                'correctness_score': score,
+                'test_cases_passed': passed_count,
+                'test_cases_total': total_count,
+                'is_correct': is_correct,
+                'question_title': question_title,
+            },
+            'code_quality': {
+                'readability_score': 0,  # Could be enhanced with code analysis
+            },
+            'coding_session_id': coding_session_id,  # Store coding session reference here
+            'original_results': execution_results,  # Keep original for reference
+        }
+
+        # session_id is NULL because ai_analysis.session_id references interview_sessions,
+        # not coding_sessions. The coding_session_id is stored in raw_results instead.
+        insert_stmt = ai_analysis_table.insert().values(
+            id=analysis_id,
+            interview_id=uuid.UUID(interview_id),
+            session_id=None,
+            analysis_type='coding_analysis',
+            service_name='coding-service',
+            raw_results=raw_results,
+            confidence_score=1.0,  # Coding results are deterministic
+            processing_time=int(execution_results.get('totalExecutionTime', 0) * 1000),
+            version='1.0',
+            created_at=now
+        )
+        self.session.execute(insert_stmt)
+
+        return str(analysis_id)
+
+    def check_coding_analysis_exists(self, interview_id: str, session_id: str) -> bool:
+        """Check if coding analysis already exists for this session"""
+        query = select(ai_analysis_table).where(
+            and_(
+                ai_analysis_table.c.interview_id == uuid.UUID(interview_id),
+                ai_analysis_table.c.session_id == uuid.UUID(session_id),
+                ai_analysis_table.c.service_name == 'coding-service'
+            )
+        )
+        result = self.session.execute(query).fetchone()
+        return result is not None
+
+    # ==========================================
+    # INTERVIEW STATUS METHODS
+    # ==========================================
+
+    def update_interview_status(self, interview_id: str, status: str) -> bool:
+        """Update interview status and completed_at timestamp"""
+        from sqlalchemy import update as sql_update
+
+        values = {'status': status}
+        if status == 'completed':
+            values['completed_at'] = datetime.utcnow()
+
+        update_stmt = (
+            sql_update(interviews_table)
+            .where(interviews_table.c.id == uuid.UUID(interview_id))
+            .values(**values)
+        )
+        result = self.session.execute(update_stmt)
+        return result.rowcount > 0

@@ -16,6 +16,7 @@ class JobPosition(Base):
     description = Column(Text, nullable=True)
     required_skills = Column(JSONB, nullable=True)
     department = Column(String(255), nullable=True)
+    interview_settings = Column(JSONB, nullable=True, default={})  # Coding round config, Q&A settings, etc.
     is_active = Column(Boolean, default=True, nullable=False)
     created_by = Column(UUID(as_uuid=True), nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
@@ -31,6 +32,7 @@ class JobPosition(Base):
             'description': self.description,
             'required_skills': self.required_skills,
             'department': self.department,
+            'interview_settings': self.interview_settings,
             'is_active': self.is_active,
             'created_by': str(self.created_by) if self.created_by else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,

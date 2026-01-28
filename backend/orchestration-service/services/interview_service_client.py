@@ -139,6 +139,20 @@ class InterviewServiceClient:
             logger.error(f"❌ Token validation error: {str(e)}")
             raise
 
+    async def update_interview_settings(self, interview_id: str, settings: Dict) -> Dict:
+        """Update interview settings (assign coding questions, stage config)"""
+        url = f"{self.base_url}/api/interviews/{interview_id}/settings"
+
+        try:
+            logger.info(f"Updating interview {interview_id} settings")
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.patch(url, json={"settings": settings})
+                response.raise_for_status()
+                return response.json()
+        except Exception as e:
+            logger.error(f"Settings update failed: {str(e)}")
+            raise
+
     async def update_interview_status(self, interview_id: str, status: str) -> Dict:
         """Update interview status in database"""
         url = f"{self.base_url}/api/interviews/{interview_id}/status"

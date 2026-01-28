@@ -210,9 +210,9 @@ class ResumeService:
             logger.error(f"Failed to update candidate resume URL: {str(e)}")
     
     def _create_interview_for_candidate(
-        self, 
-        candidate_data: Dict[str, Any], 
-        organization_id: Optional[str], 
+        self,
+        candidate_data: Dict[str, Any],
+        organization_id: Optional[str],
         job_position_id: str,
         interview_settings: Optional[Dict[str, Any]] = None
     ) -> None:
@@ -220,41 +220,77 @@ class ResumeService:
         try:
             from repository.interview_repository import InterviewRepository
             from repository.interview_template_repository import InterviewTemplateRepository
+            from repository.job_position_repository import JobPositionRepository
             session = DBFactory.get_session()
             try:
                 interview_repo = InterviewRepository(session)
                 template_repo = InterviewTemplateRepository(session)
-                
+                job_position_repo = JobPositionRepository(session)
+
                 # Extract candidate_id - handle both dict with 'id' key and direct string
                 candidate_id = candidate_data.get('id') if isinstance(candidate_data, dict) else str(candidate_data)
                 if not candidate_id:
                     logger.warning("Cannot create interview: candidate ID is missing")
                     return
-                
+
                 # Ensure candidate_id is a string
                 candidate_id = str(candidate_id)
                 organization_id = organization_id or "e5d2d50b-6c07-43cd-8a78-ffd7b5b377bb"
-                
+
+                # Fetch job position to get interview_settings (coding round config, etc.)
+                job_position = job_position_repo.get_job_position_by_id(job_position_id)
+                job_position_settings = {}
+                if job_position and job_position.interview_settings:
+                    job_position_settings = job_position.interview_settings
+                    logger.info(f"Loaded interview settings from job position {job_position_id}: {job_position_settings}")
+
                 # Option 3: Query for organization's template (simple fallback)
                 template = template_repo.get_template_by_organization(organization_id)
                 if not template:
                     logger.error(f"No interview template found for organization {organization_id}. Please create a template first.")
                     raise ValueError(f"No interview template found for organization {organization_id}")
-                
+
                 template_id = str(template.id)
                 logger.info(f"Using template {template_id} ({template.name}) for organization {organization_id}")
-                
+
                 # Generate session_id
                 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
                 session_id = f"session_{timestamp}_{uuid.uuid4().hex[:8]}"
-                
-                # Use provided settings or defaults
-                mode = interview_settings.get('mode') if interview_settings and 'mode' in interview_settings else 'video'  # Default: video
-                difficulty = interview_settings.get('difficulty') if interview_settings and 'difficulty' in interview_settings else 'medium'
-                max_questions = interview_settings.get('max_questions') if interview_settings and 'max_questions' in interview_settings else 15
-                interview_type = interview_settings.get('interview_type') if interview_settings and 'interview_type' in interview_settings else 'mixed'
-                target_duration_minutes = interview_settings.get('target_duration_minutes') if interview_settings and 'target_duration_minutes' in interview_settings else 12
-                
+
+                # Merge settings: job_position_settings -> interview_settings (provided) -> defaults
+                merged_settings = {**job_position_settings, **(interview_settings or {})}
+
+                # Use merged settings or defaults
+                mode = merged_settings.get('mode', 'video')  # Default: video
+                difficulty = merged_settings.get('difficulty', 'medium')
+                max_questions = merged_settings.get('max_questions', 15)
+                interview_type = merged_settings.get('interview_type', 'mixed')
+                target_duration_minutes = merged_settings.get('target_duration_minutes', 12)
+
+                # Build interview settings - include coding round config from job position
+                interview_final_settings = {
+                    'difficulty': difficulty,
+                    'session_id': session_id,
+                    'max_questions': max_questions,
+                    'interview_type': interview_type,
+                    'candidate_record_id': candidate_id,
+                    'target_duration_minutes': target_duration_minutes
+                }
+
+                # Copy coding round settings from job position
+                if job_position_settings.get('has_coding_round'):
+                    interview_final_settings['has_coding_round'] = True
+                    interview_final_settings['coding_question_ids'] = job_position_settings.get('coding_question_ids', [])
+                    interview_final_settings['coding_time_limit'] = job_position_settings.get('coding_time_limit', 3600)
+                    interview_final_settings['allowed_languages'] = job_position_settings.get('allowed_languages', ['python', 'javascript'])
+                    logger.info(f"Coding round enabled for interview: {interview_final_settings['coding_question_ids']}")
+
+                # Copy Q&A settings from job position
+                if job_position_settings.get('qa_question_count'):
+                    interview_final_settings['qa_question_count'] = job_position_settings['qa_question_count']
+                if job_position_settings.get('qa_time_per_question'):
+                    interview_final_settings['qa_time_per_question'] = job_position_settings['qa_time_per_question']
+
                 # Create interview record with job_position_id and template_id
                 interview_data = {
                     'organization_id': organization_id,
@@ -264,14 +300,7 @@ class ResumeService:
                     'status': 'scheduled',  # Start as scheduled
                     'mode': mode,  # Configurable, default: video
                     'scheduled_at': datetime.now(timezone.utc).isoformat(),
-                    'settings': {
-                        'difficulty': difficulty,
-                        'session_id': session_id,
-                        'max_questions': max_questions,
-                        'interview_type': interview_type,
-                        'candidate_record_id': candidate_id,
-                        'target_duration_minutes': target_duration_minutes
-                    }
+                    'settings': interview_final_settings
                 }
                 
                 interview = interview_repo.create_interview(interview_data)
