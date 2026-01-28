@@ -15,6 +15,7 @@ SERVICE_URLS = {
     "media_service": os.getenv("MEDIA_SERVICE_URL", "http://media-service:8080"),
     "interview_service": os.getenv("INTERVIEW_SERVICE_URL", "http://interview-service:8080"),
     "assessment_service": os.getenv("ASSESSMENT_SERVICE_URL", "http://assessment-service:8080"),
+    "coding_service": os.getenv("CODING_SERVICE_URL", "http://coding-service:8080"),
 }
 
 class ServiceClient:
@@ -34,26 +35,28 @@ class ServiceClient:
         service_name: str,
         endpoint: str,
         data: Optional[Dict] = None,
-        files: Optional[Dict] = None
+        files: Optional[Dict] = None,
+        headers: Optional[Dict[str, str]] = None
     ) -> Dict[str, Any]:
         """
         Make HTTP request to a microservice
-        
+
         Args:
             method: HTTP method (GET, POST, PUT, DELETE)
             service_name: Name of the service (key in SERVICE_URLS)
             endpoint: API endpoint path
             data: Request body data
             files: Files to upload (for multipart/form-data)
-        
+            headers: Optional headers to pass through (e.g., Authorization)
+
         Returns:
             Response data as dictionary
         """
         if service_name not in SERVICE_URLS:
             raise ValueError(f"Unknown service: {service_name}")
-        
+
         url = f"{SERVICE_URLS[service_name]}{endpoint}"
-        
+
         try:
             if files:
                 # For file uploads (multipart/form-data)
@@ -61,16 +64,18 @@ class ServiceClient:
                     method,
                     url,
                     data=data,
-                    files=files
+                    files=files,
+                    headers=headers
                 )
             else:
                 # For JSON requests
                 response = await self.client.request(
                     method,
                     url,
-                    json=data
+                    json=data,
+                    headers=headers
                 )
-            
+
             response.raise_for_status()
             return response.json()
             
@@ -254,9 +259,91 @@ class ServiceClient:
         }
     
     # ============================================
+    # Coding Service Methods
+    # ============================================
+
+    async def get_coding_questions(
+        self,
+        auth_token: str,
+        difficulty: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Get available coding questions"""
+        endpoint = "/v1/questions"
+        if difficulty:
+            endpoint += f"?difficulty={difficulty}"
+        return await self._request(
+            "GET",
+            "coding_service",
+            endpoint,
+            headers={"Authorization": f"Bearer {auth_token}"}
+        )
+
+    async def start_coding_session(
+        self,
+        auth_token: str,
+        interview_id: str,
+        question_id: str,
+        language: str = "python"
+    ) -> Dict[str, Any]:
+        """Start a coding session for a candidate"""
+        return await self._request(
+            "POST",
+            "coding_service",
+            "/v1/sessions",
+            data={
+                "interviewId": interview_id,
+                "questionId": question_id,
+                "language": language
+            },
+            headers={"Authorization": f"Bearer {auth_token}"}
+        )
+
+    async def get_coding_session(
+        self,
+        auth_token: str,
+        session_id: str
+    ) -> Dict[str, Any]:
+        """Get coding session details and results"""
+        return await self._request(
+            "GET",
+            "coding_service",
+            f"/v1/sessions/{session_id}",
+            headers={"Authorization": f"Bearer {auth_token}"}
+        )
+
+    async def get_coding_sessions_by_interview(
+        self,
+        auth_token: str,
+        interview_id: str
+    ) -> Dict[str, Any]:
+        """Get all coding sessions for an interview"""
+        return await self._request(
+            "GET",
+            "coding_service",
+            f"/v1/sessions/interview/{interview_id}",
+            headers={"Authorization": f"Bearer {auth_token}"}
+        )
+
+    async def complete_coding_round(
+        self,
+        auth_token: str,
+        interview_id: str
+    ) -> Dict[str, Any]:
+        """
+        Complete the coding round for an interview.
+        Saves coding results to ai_analysis and marks interview as completed.
+        """
+        return await self._request(
+            "POST",
+            "coding_service",
+            f"/v1/sessions/interview/{interview_id}/complete",
+            headers={"Authorization": f"Bearer {auth_token}"}
+        )
+
+    # ============================================
     # Assessment Service Methods
     # ============================================
-    
+
     async def get_assessment_results(
         self,
         interview_id: str

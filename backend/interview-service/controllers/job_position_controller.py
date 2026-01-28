@@ -8,6 +8,7 @@ from services.job_position_service import JobPositionService
 from schemas.job_position_schemas import (
     JobPositionCreate,
     JobPositionUpdate,
+    InterviewSettingsUpdate,
     APIResponse
 )
 
@@ -157,10 +158,108 @@ async def partial_update_job_position(
 ):
     """
     Partially update a job position (same as PUT)
-    
+
     All fields are optional - only provided fields will be updated
     """
     return await update_job_position(job_position_id, job_position)
+
+
+@router.patch("/{job_position_id}/interview-settings", response_model=APIResponse)
+async def update_interview_settings(
+    job_position_id: str,
+    settings: InterviewSettingsUpdate
+):
+    """
+    Update interview settings for a job position
+
+    This is where you configure the coding round and other interview parameters.
+
+    Settings fields:
+    - has_coding_round: Enable/disable coding round (default: false)
+    - coding_question_ids: List of coding question IDs to assign
+    - coding_time_limit: Time limit for coding in seconds (default: 3600)
+    - allowed_languages: List of allowed programming languages
+    - qa_question_count: Number of Q&A questions (default: 5)
+    - qa_time_per_question: Time per Q&A question in seconds (default: 120)
+    - total_time_limit: Total interview time limit in seconds
+
+    Example request body:
+    {
+        "has_coding_round": true,
+        "coding_question_ids": ["uuid1", "uuid2"],
+        "coding_time_limit": 3600,
+        "allowed_languages": ["python", "javascript"]
+    }
+    """
+    try:
+        job_position_service = JobPositionService()
+
+        # Get current job position
+        get_result = job_position_service.get_job_position_by_id(job_position_id)
+        if not get_result["success"]:
+            if "not found" in get_result["error"].lower():
+                raise HTTPException(status_code=404, detail=get_result["error"])
+            else:
+                raise HTTPException(status_code=400, detail=get_result["error"])
+
+        # Get current settings or empty dict
+        current_settings = get_result["data"].get("interview_settings") or {}
+
+        # Merge new settings with current settings
+        new_settings = settings.dict(exclude_none=True)
+        merged_settings = {**current_settings, **new_settings}
+
+        # Update job position with merged settings
+        result = job_position_service.update_job_position(
+            job_position_id,
+            {"interview_settings": merged_settings}
+        )
+
+        if result["success"]:
+            logger.info(f"Updated interview settings for job position {job_position_id}: {merged_settings}")
+            return create_response({
+                "job_position_id": job_position_id,
+                "interview_settings": merged_settings
+            })
+        else:
+            raise HTTPException(status_code=400, detail=result["error"])
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in update_interview_settings: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.get("/{job_position_id}/interview-settings", response_model=APIResponse)
+async def get_interview_settings(job_position_id: str):
+    """
+    Get interview settings for a job position
+
+    Returns the configured interview settings including coding round configuration.
+    """
+    try:
+        job_position_service = JobPositionService()
+        result = job_position_service.get_job_position_by_id(job_position_id)
+
+        if result["success"]:
+            settings = result["data"].get("interview_settings") or {}
+            return create_response({
+                "job_position_id": job_position_id,
+                "interview_settings": settings
+            })
+        else:
+            if "not found" in result["error"].lower():
+                raise HTTPException(status_code=404, detail=result["error"])
+            else:
+                raise HTTPException(status_code=400, detail=result["error"])
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error in get_interview_settings: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
 
 @router.delete("/{job_position_id}", response_model=APIResponse)
 async def delete_job_position(job_position_id: str):

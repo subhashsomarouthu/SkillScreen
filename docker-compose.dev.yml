@@ -99,11 +99,16 @@ services:
       context: ./backend/coding-service
       dockerfile: Dockerfile
     container_name: coding-service
+    ports:
+      - "8008:8080"
     environment:
       - PORT=8080
       - HOST=0.0.0.0
       - DATABASE_URL=postgresql://postgres:postgres@host.docker.internal:5432/skillscreen_database
       - PYTHONPATH=/app:/common-service
+      # JWT Configuration (must match SSO service)
+      - SECRET_KEY=supersecret
+      - ALGORITHM=HS256
       # logging
       - ENV=dev
       - LOG_LEVEL=DEBUG
@@ -112,6 +117,7 @@ services:
       - LOG_FILE=coding-service.log
       - ENABLE_SEQ=false
       - SEQ_URL=http://seq:5341
+      # Judge0 API
       - JUDGE0_BASE_URL=https://judge0-ce.p.rapidapi.com
       - JUDGE0_RAPIDAPI_KEY=51a8a459afmsh0d9fa8864da57d9p19258fjsn0a24328cb69c
       - JUDGE0_RAPIDAPI_HOST=judge0-ce.p.rapidapi.com
@@ -337,6 +343,7 @@ services:
       VIDEO_AI_SERVICE_URL: http://video-ai-service:8080
       MEDIA_SERVICE_URL: http://media-service:8080
       ASSESSMENT_SERVICE_URL: http://assessment-service:8005
+      CODING_SERVICE_URL: http://coding-service:8080
     volumes:
       - ./backend/orchestration-service:/app
     depends_on:
@@ -347,8 +354,9 @@ services:
       - assessment-service
       - video-ai-service
       - text-ai-service
+      - coding-service
     networks:
-      - skill-screen-network 
+      - skill-screen-network
 
   seq:
     image: datalust/seq:2024.3

@@ -1,6 +1,7 @@
 import os
 import base64
 import asyncio
+import traceback
 from typing import List, Dict, Any, Optional
 
 import httpx
@@ -44,24 +45,40 @@ class CodeExecutionService:
             "stdin": encoded_stdin,
         }
 
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                f"{self.base_url}/submissions?base64_encoded=true&fields=*",
-                json=payload,
-                headers=self._headers(),
-                timeout=20.0,
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.post(
+                    f"{self.base_url}/submissions?base64_encoded=true&fields=*",
+                    json=payload,
+                    headers=self._headers(),
+                    timeout=60.0,
+                )
+        except httpx.TimeoutException as e:
+            raise HTTPException(
+                status_code=504,
+                detail=f"Judge0 API timeout: {str(e)}"
+            )
+        except httpx.ConnectError as e:
+            raise HTTPException(
+                status_code=502,
+                detail=f"Cannot connect to Judge0 API: {str(e)}"
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=502,
+                detail=f"Judge0 API error: {type(e).__name__}: {str(e)}"
             )
 
         if resp.status_code not in (200, 201):
             raise HTTPException(
                 status_code=502,
-                detail=f"Judge0 submit error: {resp.status_code}",
+                detail=f"Judge0 submit error: {resp.status_code} - {resp.text}",
             )
 
         data = resp.json()
         token = data.get("token")
         if not token:
-            raise HTTPException(status_code=502, detail="No token returned by Judge0")
+            raise HTTPException(status_code=502, detail=f"No token returned by Judge0: {data}")
 
         return token
 
@@ -71,17 +88,33 @@ class CodeExecutionService:
           curl --request GET \
                --url 'https://judge0-ce.p.rapidapi.com/submissions/{token}?base64_encoded=true&fields=*'
         """
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(
-                f"{self.base_url}/submissions/{token}?base64_encoded=true&fields=*",
-                headers=self._headers(),
-                timeout=20.0,
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(
+                    f"{self.base_url}/submissions/{token}?base64_encoded=true&fields=*",
+                    headers=self._headers(),
+                    timeout=60.0,
+                )
+        except httpx.TimeoutException as e:
+            raise HTTPException(
+                status_code=504,
+                detail=f"Judge0 API timeout getting result: {str(e)}"
+            )
+        except httpx.ConnectError as e:
+            raise HTTPException(
+                status_code=502,
+                detail=f"Cannot connect to Judge0 API: {str(e)}"
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=502,
+                detail=f"Judge0 API error: {type(e).__name__}: {str(e)}"
             )
 
         if resp.status_code not in (200, 201):
             raise HTTPException(
                 status_code=502,
-                detail=f"Judge0 get error: {resp.status_code}",
+                detail=f"Judge0 get error: {resp.status_code} - {resp.text}",
             )
 
         return resp.json()
@@ -174,8 +207,8 @@ class CodeExecutionService:
 
         for tc in test_cases:
             tc_id = tc.get("id", "")
-            tc_input = tc.get("input", "")
-            expected_output = tc.get("expectedOutput", "")
+            tc_input = tc.get("input", "").replace("\\n", "\n")
+            expected_output = tc.get("expectedOutput", "").replace("\\n", "\n")
             weight = float(tc.get("weight", 1.0))
 
             result = await self._call_judge0(

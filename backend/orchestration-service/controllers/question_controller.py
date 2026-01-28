@@ -92,30 +92,57 @@ async def get_next_question(request: NextQuestionRequest):
             completed = next_question_result.get("completed", False)
 
             if completed:
-                # Interview has reached max questions
-                logger.info(f"✅ Interview completed - Max questions reached")
+                # Q&A stage has reached max questions
+                logger.info(f"✅ Q&A stage completed - Max questions reached")
 
-                # Update interview status to completed
-                try:
-                    await interview_client.update_interview_status(interview_id, "completed")
-                    logger.info("✅ Interview status updated to 'completed'")
-                except Exception as e:
-                    logger.warning(f"⚠️ Failed to update interview status: {str(e)}")
+                # Check if interview has coding questions assigned
+                interview_settings = interview_details.get("settings") or {}
+                coding_question_ids = interview_settings.get("coding_question_ids", [])
+                has_coding_round = interview_settings.get("has_coding_round", False)
 
-                # Get final evaluation
-                try:
-                    final_eval = await text_client.evaluate_interview(interview_id)
-                    logger.info("✅ Final evaluation retrieved")
-                except Exception as e:
-                    logger.warning(f"⚠️ Failed to get final evaluation: {str(e)}")
-                    final_eval = {"data": {}}
+                if has_coding_round and coding_question_ids:
+                    # Transition to coding stage
+                    logger.info(f"🔄 Transitioning to coding stage with {len(coding_question_ids)} questions")
 
-                return NextQuestionResponse(
-                    status="completed",
-                    summary=final_eval.get("data", {}),
-                    evaluation_score=evaluation_score,
-                    feedback=feedback
-                )
+                    # Update interview status to coding_in_progress
+                    try:
+                        await interview_client.update_interview_status(interview_id, "coding_in_progress")
+                        logger.info("✅ Interview status updated to 'coding_in_progress'")
+                    except Exception as e:
+                        logger.warning(f"⚠️ Failed to update interview status: {str(e)}")
+
+                    return NextQuestionResponse(
+                        status="coding_stage",
+                        next_stage="coding",
+                        coding_question_ids=coding_question_ids,
+                        evaluation_score=evaluation_score,
+                        feedback=feedback
+                    )
+                else:
+                    # No coding round - interview is fully completed
+                    logger.info("✅ Interview fully completed (no coding round)")
+
+                    # Update interview status to completed
+                    try:
+                        await interview_client.update_interview_status(interview_id, "completed")
+                        logger.info("✅ Interview status updated to 'completed'")
+                    except Exception as e:
+                        logger.warning(f"⚠️ Failed to update interview status: {str(e)}")
+
+                    # Get final evaluation
+                    try:
+                        final_eval = await text_client.evaluate_interview(interview_id)
+                        logger.info("✅ Final evaluation retrieved")
+                    except Exception as e:
+                        logger.warning(f"⚠️ Failed to get final evaluation: {str(e)}")
+                        final_eval = {"data": {}}
+
+                    return NextQuestionResponse(
+                        status="completed",
+                        summary=final_eval.get("data", {}),
+                        evaluation_score=evaluation_score,
+                        feedback=feedback
+                    )
             else:
                 # Some other error occurred
                 logger.error(f"❌ Next question generation failed: {error_msg}")
@@ -365,28 +392,54 @@ async def submit_video_response(
             completed = next_question_result.get("completed", False)
 
             if completed:
-                # Interview has reached max questions
-                logger.info(f"✅ Interview completed - Max questions reached")
+                # Q&A stage has reached max questions
+                logger.info(f"✅ Q&A stage completed - Max questions reached")
 
-                try:
-                    await interview_client.update_interview_status(interview_id, "completed")
-                    logger.info("✅ Interview status updated to 'completed'")
-                except Exception as e:
-                    logger.warning(f"⚠️ Failed to update interview status: {str(e)}")
+                # Check if interview has coding questions assigned
+                interview_settings = interview_details.get("settings") or {}
+                coding_question_ids = interview_settings.get("coding_question_ids", [])
+                has_coding_round = interview_settings.get("has_coding_round", False)
 
-                try:
-                    final_eval = await text_client.evaluate_interview(interview_id)
-                    logger.info("✅ Final evaluation retrieved")
-                except Exception as e:
-                    logger.warning(f"⚠️ Failed to get final evaluation: {str(e)}")
-                    final_eval = {"data": {}}
+                if has_coding_round and coding_question_ids:
+                    # Transition to coding stage
+                    logger.info(f"🔄 Transitioning to coding stage with {len(coding_question_ids)} questions")
 
-                return NextQuestionResponse(
-                    status="completed",
-                    summary=final_eval.get("data", {}),
-                    evaluation_score=evaluation_score,
-                    feedback=feedback
-                )
+                    try:
+                        await interview_client.update_interview_status(interview_id, "coding_in_progress")
+                        logger.info("✅ Interview status updated to 'coding_in_progress'")
+                    except Exception as e:
+                        logger.warning(f"⚠️ Failed to update interview status: {str(e)}")
+
+                    return NextQuestionResponse(
+                        status="coding_stage",
+                        next_stage="coding",
+                        coding_question_ids=coding_question_ids,
+                        evaluation_score=evaluation_score,
+                        feedback=feedback
+                    )
+                else:
+                    # No coding round - interview is fully completed
+                    logger.info("✅ Interview fully completed (no coding round)")
+
+                    try:
+                        await interview_client.update_interview_status(interview_id, "completed")
+                        logger.info("✅ Interview status updated to 'completed'")
+                    except Exception as e:
+                        logger.warning(f"⚠️ Failed to update interview status: {str(e)}")
+
+                    try:
+                        final_eval = await text_client.evaluate_interview(interview_id)
+                        logger.info("✅ Final evaluation retrieved")
+                    except Exception as e:
+                        logger.warning(f"⚠️ Failed to get final evaluation: {str(e)}")
+                        final_eval = {"data": {}}
+
+                    return NextQuestionResponse(
+                        status="completed",
+                        summary=final_eval.get("data", {}),
+                        evaluation_score=evaluation_score,
+                        feedback=feedback
+                    )
             else:
                 logger.error(f"❌ Next question generation failed: {error_msg}")
                 raise HTTPException(status_code=500, detail=f"Failed to generate next question: {error_msg}")

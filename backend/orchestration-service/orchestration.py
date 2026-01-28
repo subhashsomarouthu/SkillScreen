@@ -7,7 +7,8 @@ from controllers import (
     resume_controller,
     interview_controller,
     question_controller,
-    assessment_controller
+    assessment_controller,
+    coding_controller
 )
 
 app = FastAPI(
@@ -31,6 +32,7 @@ app.include_router(resume_controller.router, prefix="/api/resumes", tags=["Resum
 app.include_router(interview_controller.router, prefix="/api/interviews", tags=["Interviews"])
 app.include_router(question_controller.router, prefix="/api/questions", tags=["Questions"])
 app.include_router(assessment_controller.router, prefix="/api/assessments", tags=["Assessments"])
+app.include_router(coding_controller.router, prefix="/api/coding", tags=["Coding"])
 
 @app.on_event("startup")
 async def startup():

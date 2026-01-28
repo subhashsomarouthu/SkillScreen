@@ -241,6 +241,42 @@ async def get_interview(interview_id: str):
         logger.error(f"Error fetching interview: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch interview: {str(e)}")
 
+@app.patch("/api/interviews/{interview_id}/settings")
+async def update_interview_settings(interview_id: str, request: Request):
+    """Update interview settings (e.g., assign coding questions, stage config)"""
+    try:
+        body = await request.json()
+        new_settings = body.get("settings")
+
+        if not new_settings:
+            raise HTTPException(status_code=400, detail="Settings object is required")
+
+        session = DBFactory.get_session()
+        try:
+            interview_repo = InterviewRepository(session)
+            interview = interview_repo.get_interview_by_id(interview_id)
+
+            if not interview:
+                raise HTTPException(status_code=404, detail="Interview not found")
+
+            # Merge new settings with existing
+            current_settings = interview.settings or {}
+            current_settings.update(new_settings)
+
+            interview_repo.update_interview(interview_id, {"settings": current_settings})
+            session.commit()
+
+            logger.info(f"Interview {interview_id} settings updated")
+            return create_response({"interview_id": interview_id, "settings": current_settings}, success=True)
+        finally:
+            session.close()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating interview settings: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to update settings: {str(e)}")
+
+
 @app.patch("/api/interviews/{interview_id}/status")
 async def update_interview_status(interview_id: str, request: Request):
     """Update interview status in database"""
