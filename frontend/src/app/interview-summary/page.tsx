@@ -24,25 +24,14 @@ import { API_BASE_URL } from '@/lib/config';
 import { getInterviewToken } from '@/lib/interviewToken';
 import TranscriptModal from '@/components/TranscriptModal';
 
-// Mock analysis data for visualization if not present in API
-const MOCK_ANALYSIS = {
-  overall_score: 85,
-  categories: [
-    { name: 'Technical Proficiency', score: 88, feedback: 'Strong understanding of core concepts.' },
-    { name: 'Communication', score: 82, feedback: 'Clear and concise explanations.' },
-    { name: 'Problem Solving', score: 85, feedback: 'Good analytical approach to challenges.' },
-    { name: 'Cultural Fit', score: 90, feedback: 'Aligns well with team values.' }
-  ],
-  key_strengths: [
-    'Deep knowledge of React and modern frontend ecosystems',
-    'Excellent system design capabilities',
-    'Strong advocate for code quality and testing'
-  ],
-  areas_for_improvement: [
-    'Could provide more concrete examples for soft skill questions',
-    'Slightly hesitant on database optimization topics'
-  ],
-  executive_summary: "The candidate demonstrates a strong technical background with a focus on frontend technologies. They communicated complex ideas effectively and showed a solid problem-solving mindset. Highly recommended for the Senior Frontend role."
+// Default analysis structure when no assessment data is available
+const EMPTY_ANALYSIS = {
+  overall_score: 0,
+  categories: [] as { name: string; score: number; feedback: string }[],
+  key_strengths: [] as string[],
+  areas_for_improvement: [] as string[],
+  executive_summary: '',
+  recommendation: 'needs_review',
 };
 
 export default function InterviewSummaryPage() {
@@ -71,7 +60,7 @@ export default function InterviewSummaryPage() {
       setAccessDenied(true);
       setLoading(false);
       return;
-    } else if (!authLoading && user && user.userType !== 'recruiter') {
+    } else if (!authLoading && user && !['recruiter', 'hiring_manager', 'team_lead', 'hr'].includes(user.userType)) {
       setAccessDenied(true);
       setLoading(false);
       return;
@@ -86,15 +75,12 @@ export default function InterviewSummaryPage() {
 
       try {
         const response = await apiClient.getInterviewDetails(interviewId);
+        console.log('Interview details response:', response);
         if (response.success) {
-          // Merge with mock analysis if real analysis is missing (for demo purposes)
-          const data = {
-            ...response.data,
-            analysis: response.data.analysis || MOCK_ANALYSIS
-          };
-          setInterview(data);
+          // Use real assessment data from the API (no mock fallback)
+          setInterview(response.data);
 
-          if (data.status === 'completed' || data.transcript) {
+          if (response.data.status === 'completed' || response.data.transcript) {
             setShowInitialProcessing(false);
           }
         } else {
@@ -108,7 +94,8 @@ export default function InterviewSummaryPage() {
       }
     };
 
-    if (!authLoading && (user?.userType === 'recruiter' || isCandidateCompletion)) {
+    const allowedRoles = ['recruiter', 'hiring_manager', 'team_lead', 'hr'];
+    if (!authLoading && (allowedRoles.includes(user?.userType || '') || isCandidateCompletion)) {
       fetchInterview();
     }
 
@@ -119,13 +106,9 @@ export default function InterviewSummaryPage() {
       try {
         const response = await apiClient.getInterviewDetails(interviewId);
         if (response.success) {
-          const data = {
-            ...response.data,
-            analysis: response.data.analysis || MOCK_ANALYSIS
-          };
-          setInterview(data);
+          setInterview(response.data);
 
-          if (data.status === 'completed') {
+          if (response.data.status === 'completed') {
             clearInterval(pollInterval);
             setShowInitialProcessing(false);
           }
@@ -228,7 +211,8 @@ export default function InterviewSummaryPage() {
     ? `${API_BASE_URL}/media/video${interview.video_path}`
     : '';
 
-  const analysis = interview.analysis || MOCK_ANALYSIS;
+  const analysis = interview.analysis || EMPTY_ANALYSIS;
+  const hasAssessment = analysis.overall_score > 0 || analysis.categories.length > 0;
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-white font-sans selection:bg-blue-500/30">
@@ -286,8 +270,8 @@ export default function InterviewSummaryPage() {
               <div className="p-5">
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <h3 className="text-lg font-semibold">{interview.candidate_id}</h3>
-                    <p className="text-white/50 text-sm">Candidate</p>
+                    <h3 className="text-lg font-semibold">{interview.candidate_name || interview.candidate_id || 'Unknown Candidate'}</h3>
+                    <p className="text-white/50 text-sm">{interview.candidate_email || 'Candidate'}</p>
                   </div>
                   <div className="text-right">
                     <div className="text-lg font-mono font-medium">
@@ -313,38 +297,59 @@ export default function InterviewSummaryPage() {
             <div className="glass-dark rounded-2xl p-6 border border-white/10 relative overflow-hidden">
               <div className="absolute top-0 right-0 p-32 bg-blue-500/10 blur-[60px] rounded-full pointer-events-none" />
 
-              <h3 className="text-lg font-semibold text-white/90 mb-6 flex items-center gap-2">
+              <h3 className="text-lg font-semibold text-white/90 mb-4 flex items-center gap-2">
                 <Target className="w-5 h-5 text-blue-400" />
                 Overall Score
               </h3>
 
-              <div className="flex items-end gap-4 mb-6">
-                <div className="text-6xl font-bold text-white tracking-tighter">
-                  {analysis.overall_score}
+              {/* Recommendation Badge */}
+              {analysis.recommendation && analysis.recommendation !== 'needs_review' && (
+                <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium mb-4 border ${
+                  analysis.recommendation === 'hire' ? 'bg-green-500/20 text-green-300 border-green-500/30' :
+                  analysis.recommendation === 'maybe' ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30' :
+                  'bg-red-500/20 text-red-300 border-red-500/30'
+                }`}>
+                  {analysis.recommendation === 'hire' ? 'Recommended to Hire' :
+                   analysis.recommendation === 'maybe' ? 'Maybe' : 'Not Recommended'}
                 </div>
-                <div className="text-xl text-white/40 font-medium mb-2">/ 100</div>
-              </div>
+              )}
 
-              <div className="space-y-4">
-                {analysis.categories.map((cat: any, idx: number) => (
-                  <div key={idx}>
-                    <div className="flex justify-between text-sm mb-1.5">
-                      <span className="text-white/70">{cat.name}</span>
-                      <span className="font-medium text-white">{cat.score}%</span>
+              {hasAssessment ? (
+                <>
+                  <div className="flex items-end gap-4 mb-6">
+                    <div className="text-6xl font-bold text-white tracking-tighter">
+                      {Math.round(analysis.overall_score)}
                     </div>
-                    <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${cat.score}%` }}
-                        transition={{ duration: 1, delay: 0.2 + (idx * 0.1) }}
-                        className={`h-full rounded-full ${cat.score >= 80 ? 'bg-green-500' :
-                            cat.score >= 60 ? 'bg-yellow-500' : 'bg-red-500'
-                          }`}
-                      />
-                    </div>
+                    <div className="text-xl text-white/40 font-medium mb-2">/ 100</div>
                   </div>
-                ))}
-              </div>
+
+                  <div className="space-y-4">
+                    {analysis.categories.map((cat: any, idx: number) => (
+                      <div key={idx}>
+                        <div className="flex justify-between text-sm mb-1.5">
+                          <span className="text-white/70">{cat.name}</span>
+                          <span className="font-medium text-white">{Math.round(cat.score)}%</span>
+                        </div>
+                        <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${cat.score}%` }}
+                            transition={{ duration: 1, delay: 0.2 + (idx * 0.1) }}
+                            className={`h-full rounded-full ${cat.score >= 80 ? 'bg-green-500' :
+                                cat.score >= 60 ? 'bg-yellow-500' : 'bg-red-500'
+                              }`}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="text-white/40 text-lg">Assessment Pending</div>
+                  <p className="text-white/30 text-sm mt-2">Assessment data will appear once the interview is completed and analyzed.</p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -358,7 +363,7 @@ export default function InterviewSummaryPage() {
                 Executive Summary
               </h3>
               <p className="text-white/80 leading-relaxed text-lg font-light">
-                {analysis.executive_summary}
+                {analysis.executive_summary || (hasAssessment ? 'No summary available.' : 'Assessment pending - summary will appear after analysis.')}
               </p>
             </div>
 
@@ -369,14 +374,18 @@ export default function InterviewSummaryPage() {
                   <TrendingUp className="w-5 h-5 text-green-400" />
                   Key Strengths
                 </h3>
-                <ul className="space-y-3">
-                  {analysis.key_strengths.map((strength: string, idx: number) => (
-                    <li key={idx} className="flex items-start gap-3 text-white/80">
-                      <CheckCircle className="w-5 h-5 text-green-500/50 shrink-0 mt-0.5" />
-                      <span className="text-sm leading-relaxed">{strength}</span>
-                    </li>
-                  ))}
-                </ul>
+                {analysis.key_strengths && analysis.key_strengths.length > 0 ? (
+                  <ul className="space-y-3">
+                    {analysis.key_strengths.map((strength: string, idx: number) => (
+                      <li key={idx} className="flex items-start gap-3 text-white/80">
+                        <CheckCircle className="w-5 h-5 text-green-500/50 shrink-0 mt-0.5" />
+                        <span className="text-sm leading-relaxed">{strength}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-white/50 text-sm">Assessment pending</p>
+                )}
               </div>
 
               {/* Areas for Improvement */}
@@ -385,14 +394,18 @@ export default function InterviewSummaryPage() {
                   <AlertCircle className="w-5 h-5 text-orange-400" />
                   Areas for Improvement
                 </h3>
-                <ul className="space-y-3">
-                  {analysis.areas_for_improvement.map((area: string, idx: number) => (
-                    <li key={idx} className="flex items-start gap-3 text-white/80">
-                      <div className="w-1.5 h-1.5 rounded-full bg-orange-500/50 mt-2 shrink-0" />
-                      <span className="text-sm leading-relaxed">{area}</span>
-                    </li>
-                  ))}
-                </ul>
+                {analysis.areas_for_improvement && analysis.areas_for_improvement.length > 0 ? (
+                  <ul className="space-y-3">
+                    {analysis.areas_for_improvement.map((area: string, idx: number) => (
+                      <li key={idx} className="flex items-start gap-3 text-white/80">
+                        <div className="w-1.5 h-1.5 rounded-full bg-orange-500/50 mt-2 shrink-0" />
+                        <span className="text-sm leading-relaxed">{area}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-white/50 text-sm">Assessment pending</p>
+                )}
               </div>
             </div>
 

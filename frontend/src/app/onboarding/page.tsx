@@ -14,11 +14,15 @@ interface FormData {
   fullName: string;
   email: string;
   password: string;
-  // Recruiter specific fields
+  // Recruiter specific fields (required)
   company: string;
-  role: string;
-  teamSize: string;
+  companyDomain: string;
+  userRole: 'recruiter' | 'hiring_manager' | 'team_lead' | 'hr';
+  // Recruiter optional fields
   industry: string;
+  teamSize: string;
+  interviewType: 'behavioral' | 'technical' | 'coding' | 'system_design' | '';
+  jobRoleName: string;
   // Job seeker specific fields
   experience: string;
   skills: string;
@@ -33,7 +37,8 @@ interface Errors {
   email?: string;
   password?: string;
   company?: string;
-  role?: string;
+  companyDomain?: string;
+  userRole?: string;
   industry?: string;
   experience?: string;
   skills?: string;
@@ -56,11 +61,15 @@ export default function Onboarding() {
     fullName: '',
     email: '',
     password: '',
-    // Recruiter specific fields
+    // Recruiter specific fields (required)
     company: '',
-    role: '',
-    teamSize: '',
+    companyDomain: '',
+    userRole: 'recruiter',
+    // Recruiter optional fields
     industry: '',
+    teamSize: '',
+    interviewType: '',
+    jobRoleName: '',
     // Job seeker specific fields
     experience: '',
     skills: '',
@@ -116,8 +125,7 @@ export default function Onboarding() {
 
       if (userType === 'recruiter') {
         if (!formData.company) newErrors.company = 'Company name is required';
-        if (!formData.role) newErrors.role = 'Role is required';
-        if (!formData.industry) newErrors.industry = 'Industry is required';
+        // companyDomain, userRole, industry are optional
       } else if (userType === 'job_seeker') {
         if (!formData.experience) newErrors.experience = 'Experience is required';
         if (!formData.skills) newErrors.skills = 'Skills are required';
@@ -144,7 +152,12 @@ export default function Onboarding() {
           fullName: formData.fullName,
           email: formData.email,
           password: formData.password,
-          userType: userType === 'job_seeker' ? 'candidate' : 'recruiter'
+          userType: userType === 'job_seeker' ? 'candidate' : formData.userRole,
+          companyName: formData.company,
+          companyDomain: formData.companyDomain || undefined,
+          role: formData.userRole,
+          interviewType: formData.interviewType || undefined,
+          jobRoleName: formData.jobRoleName || undefined,
         });
 
         if (result.success) {
@@ -213,8 +226,8 @@ export default function Onboarding() {
               <button
                 onClick={() => setUserType('recruiter')}
                 className={`px-8 py-4 rounded-xl transition-all duration-300 transform hover:scale-105 ${
-                  userType === 'recruiter' 
-                    ? 'bg-white text-black' 
+                  userType === 'recruiter'
+                    ? 'bg-white text-black'
                     : 'bg-white/10 hover:bg-white/20 text-white'
                 }`}
               >
@@ -222,15 +235,27 @@ export default function Onboarding() {
               </button>
               <button
                 onClick={() => setUserType('job_seeker')}
-                className={`px-8 py-4 rounded-xl transition-all duration-300 transform hover:scale-105 ${
-                  userType === 'job_seeker' 
-                    ? 'bg-white text-black' 
+                className={`px-8 py-4 rounded-xl transition-all duration-300 transform hover:scale-105 relative ${
+                  userType === 'job_seeker'
+                    ? 'bg-white text-black'
                     : 'bg-white/10 hover:bg-white/20 text-white'
                 }`}
               >
                 Job Seeker
+                <span className="absolute -top-2 -right-2 px-2 py-0.5 bg-blue-500 text-white text-xs rounded-full">
+                  Soon
+                </span>
               </button>
             </div>
+            {userType === 'job_seeker' && (
+              <div className="mt-6 p-4 bg-blue-500/20 rounded-xl border border-blue-500/30">
+                <p className="text-blue-300 font-medium">Coming Soon!</p>
+                <p className="text-blue-200/70 text-sm mt-1">
+                  Practice interviews feature is under development.
+                  For now, candidates receive interview links via email from recruiters.
+                </p>
+              </div>
+            )}
             {errors.userType && (
               <p className="text-red-400 text-sm mt-2">{errors.userType}</p>
             )}
@@ -290,11 +315,12 @@ export default function Onboarding() {
               {/* Recruiter Specific Fields */}
               {userType === 'recruiter' ? (
                 <>
+                  {/* Required Fields */}
                   <div className="space-y-2">
                     <input
                       type="text"
                       name="company"
-                      placeholder="Company Name"
+                      placeholder="Company Name *"
                       value={formData.company}
                       onChange={handleInputChange}
                       className="w-full px-4 py-3 bg-white/10 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/30"
@@ -307,40 +333,79 @@ export default function Onboarding() {
                   <div className="space-y-2">
                     <input
                       type="text"
-                      name="role"
-                      placeholder="Your Role"
-                      value={formData.role}
+                      name="companyDomain"
+                      placeholder="Company Domain (e.g., acme.com)"
+                      value={formData.companyDomain}
                       onChange={handleInputChange}
                       className="w-full px-4 py-3 bg-white/10 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/30"
                     />
-                    {errors.role && (
-                      <p className="text-red-400 text-sm">{errors.role}</p>
-                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <select
+                      name="userRole"
+                      value={formData.userRole}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 bg-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-white/30"
+                    >
+                      <option value="recruiter">Recruiter</option>
+                      <option value="hiring_manager">Hiring Manager</option>
+                      <option value="team_lead">Team Lead</option>
+                      <option value="hr">HR</option>
+                    </select>
                   </div>
 
                   <div className="space-y-2">
                     <input
                       type="text"
                       name="industry"
-                      placeholder="Industry"
+                      placeholder="Industry (optional)"
                       value={formData.industry}
                       onChange={handleInputChange}
                       className="w-full px-4 py-3 bg-white/10 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/30"
                     />
-                    {errors.industry && (
-                      <p className="text-red-400 text-sm">{errors.industry}</p>
-                    )}
                   </div>
 
                   <div className="space-y-2">
                     <input
                       type="text"
                       name="teamSize"
-                      placeholder="Team Size"
+                      placeholder="Team Size (optional)"
                       value={formData.teamSize}
                       onChange={handleInputChange}
                       className="w-full px-4 py-3 bg-white/10 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/30"
                     />
+                  </div>
+
+                  {/* Interview Template Fields (Optional) */}
+                  <div className="mt-4 pt-4 border-t border-white/10">
+                    <p className="text-white/70 text-sm mb-3">Interview Template (Optional)</p>
+
+                    <div className="space-y-2">
+                      <select
+                        name="interviewType"
+                        value={formData.interviewType}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-3 bg-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-white/30"
+                      >
+                        <option value="">Select Interview Type</option>
+                        <option value="behavioral">Behavioral</option>
+                        <option value="technical">Technical</option>
+                        <option value="coding">Coding</option>
+                        <option value="system_design">System Design</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-2 mt-3">
+                      <input
+                        type="text"
+                        name="jobRoleName"
+                        placeholder="Job Role Name (e.g., Senior Developer)"
+                        value={formData.jobRoleName}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-3 bg-white/10 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/30"
+                      />
+                    </div>
                   </div>
                 </>
               ) : (
@@ -533,9 +598,9 @@ export default function Onboarding() {
           {((step < 3) || (step === 3 && permissions.camera && permissions.microphone)) && (
             <button
               onClick={handleNext}
-              disabled={(step === 1 && !userType) || isRegistering}
+              disabled={(step === 1 && (!userType || userType === 'job_seeker')) || isRegistering}
               className={`px-6 py-2 rounded-xl transition-all duration-300 flex items-center gap-2 ${
-                (step === 1 && !userType) || isRegistering
+                (step === 1 && (!userType || userType === 'job_seeker')) || isRegistering
                   ? 'bg-white/10 text-white/50 cursor-not-allowed'
                   : 'bg-white text-black hover:bg-white/90'
               }`}

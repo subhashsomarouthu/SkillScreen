@@ -23,7 +23,9 @@ export const API_ENDPOINTS = {
   AUTH_HEALTH: '/auth/health',
   
   // User
+  USER_SIGNUP: '/user/signup',
   USER_USERS: '/user/users',
+  USER_ME: '/user/me',
   USER_HEALTH: '/user/health',
   
   // Media

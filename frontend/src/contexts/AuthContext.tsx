@@ -1,14 +1,26 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User, AuthToken, getStoredAuthToken, saveAuthToken, clearAuthToken, mockLogin, mockRegister, getCurrentJWTToken } from '@/lib/auth';
+import { User, UserType, AuthToken, getStoredAuthToken, saveAuthToken, clearAuthToken, mockLogin, realRegister, SignupData, getCurrentJWTToken } from '@/lib/auth';
+
+interface RegisterData {
+  fullName: string;
+  email: string;
+  password: string;
+  userType: UserType;
+  companyName: string;
+  companyDomain?: string;
+  role?: 'recruiter' | 'hiring_manager' | 'team_lead' | 'hr';
+  interviewType?: 'behavioral' | 'technical' | 'coding' | 'system_design';
+  jobRoleName?: string;
+}
 
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (usernameOrEmail: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  register: (userData: { fullName: string; email: string; password: string; userType: 'recruiter' | 'candidate' }) => Promise<{ success: boolean; error?: string }>;
+  register: (userData: RegisterData) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   updateUser: (updates: Partial<User>) => void;
   getToken: () => string | null;
@@ -64,18 +76,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
-  const register = async (userData: { fullName: string; email: string; password: string; userType: 'recruiter' | 'candidate' }): Promise<{ success: boolean; error?: string }> => {
+  const register = async (userData: RegisterData): Promise<{ success: boolean; error?: string }> => {
     try {
       setIsLoading(true);
-      const authToken = await mockRegister(userData);
-      
-      // Save to localStorage
-      saveAuthToken(authToken);
-      setUser(authToken.user);
-      
+
+      // Call real registration API
+      const result = await realRegister({
+        fullName: userData.fullName,
+        email: userData.email,
+        password: userData.password,
+        userType: userData.userType,
+        companyName: userData.companyName,
+        companyDomain: userData.companyDomain,
+        role: userData.role,
+        interviewType: userData.interviewType,
+        jobRoleName: userData.jobRoleName,
+      });
+
+      if (!result.success) {
+        return { success: false, error: result.error || 'Registration failed' };
+      }
+
+      // Auto-login after successful registration
+      const loginResult = await login(userData.email, userData.password);
+      if (!loginResult.success) {
+        // Registration succeeded but login failed - still consider it a success
+        // User will need to login manually
+        return { success: true };
+      }
+
       return { success: true };
-    } catch (error) {
-      return { success: false, error: 'Registration failed. Please try again.' };
+    } catch (error: any) {
+      const errorMessage = error?.message || 'Registration failed. Please try again.';
+      return { success: false, error: errorMessage };
     } finally {
       setIsLoading(false);
     }
