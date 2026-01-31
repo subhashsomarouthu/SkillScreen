@@ -1,10 +1,14 @@
-export type UserType = 'recruiter' | 'candidate';
+export type UserType = 'recruiter' | 'candidate' | 'hiring_manager' | 'team_lead' | 'hr';
 
 export interface User {
   id: string;
   name: string;
   email: string;
   userType: UserType;
+  firstName?: string;
+  lastName?: string;
+  organizationId?: string;
+  organizationName?: string;
 }
 
 export interface AuthToken {
@@ -46,7 +50,7 @@ export async function mockLogin(usernameOrEmail: string, password: string): Prom
   try {
     const { apiClient } = await import('./api');
     const response = await apiClient.login({
-      username: usernameOrEmail,
+      email: usernameOrEmail,
       password: password,
     });
 
@@ -54,12 +58,16 @@ export async function mockLogin(usernameOrEmail: string, password: string): Prom
       return null;
     }
 
-    // Extract user info from JWT token or create from response
+    // Extract user info from the response
+    const userData = response.data.user;
     const user: User = {
-      id: usernameOrEmail, // Using username/email as ID for now
-      name: usernameOrEmail.includes('@') ? usernameOrEmail.split('@')[0] : usernameOrEmail,
-      email: usernameOrEmail.includes('@') ? usernameOrEmail : `${usernameOrEmail}@intervuai.com`,
-      userType: response.data.role === 'admin' ? 'recruiter' : 'candidate',
+      id: userData.id,
+      name: `${userData.first_name || ''} ${userData.last_name || ''}`.trim() || userData.email,
+      email: userData.email,
+      userType: userData.role as UserType,
+      firstName: userData.first_name,
+      lastName: userData.last_name,
+      organizationId: userData.organization_id,
     };
 
     return {
@@ -73,7 +81,68 @@ export async function mockLogin(usernameOrEmail: string, password: string): Prom
   }
 }
 
-export async function mockRegister(userData: { fullName: string; email: string; password: string; userType: UserType }): Promise<AuthToken> {
+export interface SignupData {
+  // Required
+  fullName: string;
+  email: string;
+  password: string;
+  userType: UserType;
+  companyName: string;
+  // Optional
+  companyDomain?: string;
+  role?: 'recruiter' | 'hiring_manager' | 'team_lead' | 'hr';
+  interviewType?: 'behavioral' | 'technical' | 'coding' | 'system_design';
+  jobRoleName?: string;
+}
+
+export async function realRegister(userData: SignupData): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { apiClient } = await import('./api');
+
+    // Split fullName into first_name and last_name
+    const nameParts = userData.fullName.trim().split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+
+    const response = await apiClient.signup({
+      company_name: userData.companyName,
+      company_domain: userData.companyDomain,
+      email: userData.email,
+      password: userData.password,
+      first_name: firstName,
+      last_name: lastName,
+      role: userData.role || 'recruiter',
+      interview_type: userData.interviewType,
+      job_role_name: userData.jobRoleName,
+    });
+
+    if (!response.success) {
+      return { success: false, error: 'Registration failed' };
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Registration error:', error);
+    // Try to extract error message from response
+    const errorMessage = error?.message || 'Registration failed. Please try again.';
+    return { success: false, error: errorMessage };
+  }
+}
+
+// Keep for backwards compatibility - redirects to realRegister
+export async function mockRegister(userData: { fullName: string; email: string; password: string; userType: UserType; companyName?: string }): Promise<AuthToken> {
+  // If companyName is provided, use realRegister
+  if (userData.companyName) {
+    const result = await realRegister({
+      ...userData,
+      companyName: userData.companyName,
+    });
+    if (!result.success) {
+      throw new Error(result.error);
+    }
+  }
+
+  // Return a temporary token (user will need to login after registration)
   const user: User = {
     id: Math.random().toString(36).slice(2),
     name: userData.fullName,

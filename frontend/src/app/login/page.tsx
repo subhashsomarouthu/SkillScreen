@@ -18,12 +18,11 @@ export default function LoginPage() {
   const { login, isAuthenticated, isLoading } = useAuth();
   
   const [formData, setFormData] = useState({
-    usernameOrEmail: '',
+    email: '',
     password: ''
   });
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showDemo, setShowDemo] = useState(false);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -34,17 +33,19 @@ export default function LoginPage() {
 
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
-    
-    if (!formData.usernameOrEmail.trim()) {
-      newErrors.usernameOrEmail = 'Username or email is required';
+
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'Please enter a valid email address';
     }
-    
+
     if (!formData.password.trim()) {
       newErrors.password = 'Password is required';
     } else if (formData.password.length < 3) {
       newErrors.password = 'Password must be at least 3 characters';
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -55,7 +56,7 @@ export default function LoginPage() {
     if (!validateForm()) return;
     
     setIsSubmitting(true);
-    const result = await login(formData.usernameOrEmail, formData.password);
+    const result = await login(formData.email, formData.password);
     
     if (result.success) {
       router.push('/');
@@ -69,20 +70,11 @@ export default function LoginPage() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    
+
     // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
-  };
-
-  const fillDemoCredentials = (userType: 'recruiter' | 'candidate') => {
-    const usernameOrEmail = userType === 'recruiter' ? 'admin' : 'ashish';
-    setFormData({
-      usernameOrEmail,
-      password: userType === 'recruiter' ? 'password' : '1234'
-    });
-    setShowDemo(false);
   };
 
   if (isLoading) {
@@ -144,68 +136,25 @@ export default function LoginPage() {
             <p className="text-white/70">Sign in to your account</p>
           </div>
 
-          {/* Demo Info */}
-          <div className="mb-6 p-4 bg-blue-500/20 rounded-lg border border-blue-500/30">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-blue-300 font-medium">Demo Accounts</p>
-                <p className="text-xs text-blue-200/70">Click to auto-fill credentials</p>
-              </div>
-              <button
-                onClick={() => setShowDemo(!showDemo)}
-                className="text-blue-300 hover:text-blue-200 text-sm font-medium"
-              >
-                {showDemo ? 'Hide' : 'Show'}
-              </button>
-            </div>
-            
-            {showDemo && (
-              <motion.div 
-                className="mt-3 space-y-2"
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                transition={{ duration: 0.3 }}
-              >
-                <button
-                  onClick={() => fillDemoCredentials('recruiter')}
-                  className="w-full text-left p-2 bg-blue-600/30 hover:bg-blue-600/40 rounded text-sm text-blue-200 transition-colors"
-                >
-                  <strong>Admin:</strong> admin / password
-                </button>
-                <button
-                  onClick={() => fillDemoCredentials('candidate')}
-                  className="w-full text-left p-2 bg-blue-600/30 hover:bg-blue-600/40 rounded text-sm text-blue-200 transition-colors"
-                >
-                  <strong>User:</strong> ashish / 1234
-                </button>
-                <div className="text-xs text-blue-200/70 mt-2">
-                  <p>You can also use:</p>
-                  <p>• admin@intervuai.com / password</p>
-                  <p>• ashish@intervuai.com / 1234</p>
-                </div>
-              </motion.div>
-            )}
-          </div>
-
           {/* Login Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="usernameOrEmail" className="block text-sm font-medium text-white mb-2">
-                Username or Email
+              <label htmlFor="email" className="block text-sm font-medium text-white mb-2">
+                Email
               </label>
               <input
-                type="text"
-                id="usernameOrEmail"
-                name="usernameOrEmail"
-                value={formData.usernameOrEmail}
+                type="email"
+                id="email"
+                name="email"
+                value={formData.email}
                 onChange={handleInputChange}
                 className={`w-full px-4 py-3 bg-white/10 border rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 transition-all ${
-                  errors.usernameOrEmail ? 'border-red-500 focus:ring-red-500' : 'border-white/20 focus:ring-blue-500'
+                  errors.email ? 'border-red-500 focus:ring-red-500' : 'border-white/20 focus:ring-blue-500'
                 }`}
-                placeholder="Enter your username or email"
+                placeholder="Enter your email"
               />
-              {errors.usernameOrEmail && (
-                <p className="mt-1 text-sm text-red-400">{errors.usernameOrEmail}</p>
+              {errors.email && (
+                <p className="mt-1 text-sm text-red-400">{errors.email}</p>
               )}
             </div>
 

@@ -260,6 +260,11 @@ class ResumeService:
                 # Merge settings: job_position_settings -> interview_settings (provided) -> defaults
                 merged_settings = {**job_position_settings, **(interview_settings or {})}
 
+                # Map job position field names to interview settings field names
+                # qa_question_count (job position) -> max_questions (interview)
+                if 'qa_question_count' in merged_settings and 'max_questions' not in merged_settings:
+                    merged_settings['max_questions'] = merged_settings['qa_question_count']
+
                 # Use merged settings or defaults
                 mode = merged_settings.get('mode', 'video')  # Default: video
                 difficulty = merged_settings.get('difficulty', 'medium')

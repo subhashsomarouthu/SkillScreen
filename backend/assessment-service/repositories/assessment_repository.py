@@ -3,7 +3,7 @@ sys.path.append('/common-service')
 
 from repository.base_repository import BaseRepository
 from db import UnitOfWork
-from sqlalchemy import Table, Column, Text, Integer, String, Boolean, DateTime, MetaData, select, insert, update, text, and_
+from sqlalchemy import Table, Column, Text, Integer, String, Boolean, DateTime, MetaData, select, insert, update, text, and_, cast
 from sqlalchemy.dialects.postgresql import UUID, JSONB, NUMERIC
 from datetime import datetime, timezone, timedelta
 from typing import List, Dict, Optional
@@ -111,7 +111,7 @@ candidates_table = Table(
     Column("id", UUID, primary_key=True),
     Column("organization_id", UUID),
     Column("email", String),
-    Column("name", String),
+    Column("full_name", String),
     Column("phone", String),
     Column("resume_url", String),
     Column("created_at", DateTime),
@@ -719,7 +719,7 @@ class AssessmentRepository(BaseRepository):
                 interviews_table.c.status.label("interview_status"),
                 interviews_table.c.completed_at,
                 interviews_table.c.created_at.label("interview_created_at"),
-                candidates_table.c.name.label("candidate_name"),
+                candidates_table.c.full_name.label("candidate_name"),
                 candidates_table.c.email.label("candidate_email"),
                 job_positions_table.c.title.label("job_title"),
                 assessments_table.c.id.label("assessment_id"),
@@ -740,10 +740,11 @@ class AssessmentRepository(BaseRepository):
 
         # Apply filters
         if organization_id:
-            base_query = base_query.where(interviews_table.c.organization_id == organization_id)
+            # Cast string to UUID for proper comparison with UUID column
+            base_query = base_query.where(interviews_table.c.organization_id == cast(organization_id, UUID))
 
         if job_position_id:
-            base_query = base_query.where(interviews_table.c.job_position_id == job_position_id)
+            base_query = base_query.where(interviews_table.c.job_position_id == cast(job_position_id, UUID))
 
         if recommendation:
             base_query = base_query.where(assessments_table.c.recommendation == recommendation)
@@ -775,7 +776,7 @@ class AssessmentRepository(BaseRepository):
         sort_column = {
             "overall_score": assessments_table.c.overall_score,
             "created_at": interviews_table.c.created_at,
-            "name": candidates_table.c.name,
+            "name": candidates_table.c.full_name,
             "recommendation": assessments_table.c.recommendation,
         }.get(sort_by, interviews_table.c.created_at)
 
@@ -851,9 +852,10 @@ class AssessmentRepository(BaseRepository):
         # Base filters
         interview_filter = [interviews_table.c.deleted_at.is_(None)]
         if organization_id:
-            interview_filter.append(interviews_table.c.organization_id == organization_id)
+            # Cast string to UUID for proper comparison with UUID column
+            interview_filter.append(interviews_table.c.organization_id == cast(organization_id, UUID))
         if job_position_id:
-            interview_filter.append(interviews_table.c.job_position_id == job_position_id)
+            interview_filter.append(interviews_table.c.job_position_id == cast(job_position_id, UUID))
 
         # Total interviews
         total_query = select(func.count(interviews_table.c.id)).where(and_(*interview_filter))

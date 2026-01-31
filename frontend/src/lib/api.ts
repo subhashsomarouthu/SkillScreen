@@ -12,14 +12,55 @@ export interface ApiResponse<T = any> {
 }
 
 export interface LoginRequest {
-  username: string;
+  email: string;
   password: string;
 }
 
 export interface LoginResponse {
   access_token: string;
-  role: string;
+  token_type: string;
+  user: {
+    id: string;
+    email: string;
+    first_name: string;
+    last_name: string;
+    role: string;
+    organization_id: string;
+  };
   expires_in: number;
+}
+
+export interface SignupRequest {
+  // Organization
+  company_name: string;
+  company_domain?: string;
+  // User
+  email: string;
+  password: string;
+  first_name: string;
+  last_name: string;
+  role?: 'recruiter' | 'hiring_manager' | 'team_lead' | 'hr';
+  // Interview template (optional)
+  interview_type?: 'behavioral' | 'technical' | 'coding' | 'system_design';
+  job_role_name?: string;
+  questions?: any[];
+}
+
+export interface SignupResponse {
+  message: string;
+  user: {
+    id: string;
+    email: string;
+    first_name: string;
+    last_name: string;
+    role: string;
+  };
+  organization: {
+    id: string;
+    name: string;
+    domain: string | null;
+  };
+  interview_template?: any;
 }
 
 export interface User {
@@ -91,6 +132,13 @@ class ApiClient {
     return this.request<LoginResponse>('/auth/login', {
       method: 'POST',
       body: JSON.stringify(credentials),
+    });
+  }
+
+  async signup(data: SignupRequest): Promise<ApiResponse<SignupResponse>> {
+    return this.request<SignupResponse>('/user/signup', {
+      method: 'POST',
+      body: JSON.stringify(data),
     });
   }
 
@@ -221,6 +269,79 @@ class ApiClient {
 
   async getInterviewDetails(interviewId: string): Promise<ApiResponse<any>> {
     if (!interviewId) return Promise.reject(new Error('Interview ID is required'));
+
+    // Fetch from interview service (primary source) and assessment service
+    const [interviewRes, assessmentRes] = await Promise.all([
+      this.request<any>(`/interview/api/interviews/${interviewId}`).catch(() => null),
+      this.request<any>(`/assessment/v1/assessment/interview/${interviewId}`).catch(() => null),
+    ]);
+
+    // If interview service returns data, use it as base
+    if (interviewRes?.success && interviewRes.data) {
+      const interview = interviewRes.data;
+
+      // Assessment service returns data directly (not wrapped in {success, data})
+      const assessment = assessmentRes?.success
+        ? assessmentRes.data
+        : (assessmentRes?.overall_score !== undefined ? assessmentRes : null);
+
+      if (assessment) {
+        // Build categories from available scores
+        const categories: { name: string; score: number; feedback: string }[] = [
+          { name: 'Technical Proficiency', score: assessment.technical_score || 0, feedback: '' },
+          { name: 'Communication', score: assessment.communication_score || 0, feedback: '' },
+          { name: 'Soft Skills', score: assessment.soft_skills_score || 0, feedback: '' },
+        ];
+
+        // Add Coding category if coding results exist in evidence_clips
+        const codingResults = assessment.evidence_clips?.service_results?.coding;
+        if (codingResults?.length > 0) {
+          const codingScore = codingResults[0]?.execution_results?.correctness_score ?? 0;
+          categories.push({ name: 'Coding', score: codingScore, feedback: '' });
+        }
+
+        // Extract key_strengths and areas_for_improvement from evidence_clips
+        const serviceResults = assessment.evidence_clips?.service_results || {};
+        const strengths: string[] = [];
+        const improvements: string[] = [];
+
+        // From text analysis
+        (serviceResults.text || []).forEach((t: any) => {
+          if (t.strengths) strengths.push(...t.strengths);
+          if (t.areas_for_improvement) improvements.push(...t.areas_for_improvement);
+        });
+        // From audio analysis
+        (serviceResults.audio || []).forEach((a: any) => {
+          if (a.communication_score?.strengths) strengths.push(...a.communication_score.strengths);
+          if (a.communication_score?.areas_for_improvement) improvements.push(...a.communication_score.areas_for_improvement);
+        });
+        // From video analysis
+        (serviceResults.video || []).forEach((v: any) => {
+          if (v.performance?.strengths) strengths.push(...v.performance.strengths);
+          if (v.performance?.recommendations?.length) improvements.push(...v.performance.recommendations);
+        });
+
+        // Deduplicate
+        const uniqueStrengths = [...new Set(strengths)];
+        const uniqueImprovements = [...new Set(improvements)];
+
+        interview.analysis = {
+          overall_score: assessment.overall_score || 0,
+          recommendation: assessment.recommendation || 'needs_review',
+          categories,
+          key_strengths: uniqueStrengths,
+          areas_for_improvement: uniqueImprovements,
+          executive_summary: assessment.summary || '',
+          reviewer_notes: assessment.reviewer_notes || '',
+          proctoring_risk_score: assessment.proctoring_risk_score,
+          evidence_clips: assessment.evidence_clips,
+        };
+      }
+
+      return { success: true, data: interview, meta: interviewRes.meta };
+    }
+
+    // Fallback to media service (legacy path)
     return this.request<any>(`/media/api/interviews/${interviewId}`);
   }
 
@@ -351,18 +472,34 @@ class ApiClient {
     return response.json();
   }
 
-  // Use interview-service resume upload/parsing instead of text-service
-  async uploadResumeForParsing(files: File | File[], organizationId: string = "e5d2d50b-6c07-43cd-8a78-ffd7b5b377bb"): Promise<ApiResponse<any>> {
+  // Upload resumes and create interviews via interview-service
+  async uploadResumeForParsing(files: File | File[], params: {
+    organization_id: string;
+    job_position_id: string;
+    mode?: string;
+    max_questions?: number;
+    difficulty?: string;
+    interview_type?: string;
+    target_duration_minutes?: number;
+  }): Promise<ApiResponse<any>> {
     const formData = new FormData();
     const fileArray = Array.isArray(files) ? files : [files];
-    
+
     // Append all files to formData
     fileArray.forEach((file) => {
       formData.append('files', file);
     });
-    
-    // Append organization_id (use default UUID if not provided)
-    formData.append('organization_id', organizationId);
+
+    // Append required params
+    formData.append('organization_id', params.organization_id);
+    formData.append('job_position_id', params.job_position_id);
+
+    // Append optional interview settings
+    if (params.mode) formData.append('mode', params.mode);
+    if (params.max_questions) formData.append('max_questions', String(params.max_questions));
+    if (params.difficulty) formData.append('difficulty', params.difficulty);
+    if (params.interview_type) formData.append('interview_type', params.interview_type);
+    if (params.target_duration_minutes) formData.append('target_duration_minutes', String(params.target_duration_minutes));
 
     const url = `${this.baseUrl}/interview/resumes/upload`;
     const token = this.getToken();
@@ -551,6 +688,147 @@ class ApiClient {
 
   async getJobPositions(organizationId: string): Promise<ApiResponse<{ job_positions: any[]; total: number }>> {
     return this.request<{ job_positions: any[]; total: number }>(`/interview/job-positions?organization_id=${organizationId}`);
+  }
+
+  async createJobPosition(data: {
+    organization_id: string;
+    title: string;
+    department?: string;
+    description?: string;
+    required_skills?: string[];
+  }): Promise<ApiResponse<any>> {
+    return this.request<any>('/interview/job-positions', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateInterviewSettings(jobPositionId: string, settings: {
+    has_coding_round?: boolean;
+    coding_question_ids?: string[];
+    coding_time_limit?: number;
+    allowed_languages?: string[];
+    qa_question_count?: number;
+    qa_time_per_question?: number;
+    total_time_limit?: number;
+  }): Promise<ApiResponse<any>> {
+    return this.request<any>(`/interview/job-positions/${jobPositionId}/interview-settings`, {
+      method: 'PATCH',
+      body: JSON.stringify(settings),
+    });
+  }
+
+  async deleteJobPosition(jobPositionId: string): Promise<ApiResponse<any>> {
+    return this.request<any>(`/interview/job-positions/${jobPositionId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // =========================================
+  // Coding Questions Methods
+  // =========================================
+
+  async getCodingQuestions(params?: {
+    difficulty?: string;
+    language?: string;
+  }): Promise<ApiResponse<any>> {
+    const queryParams = new URLSearchParams();
+    if (params?.difficulty) queryParams.append('difficulty', params.difficulty);
+    if (params?.language) queryParams.append('language', params.language);
+    const queryString = queryParams.toString();
+    return this.request<any>(`/coding/v1/questions${queryString ? `?${queryString}` : ''}`);
+  }
+
+  // =========================================
+  // Dashboard Methods (Assessment Service)
+  // =========================================
+
+  async getDashboardCandidates(params?: {
+    job_position_id?: string;
+    recommendation?: 'hire' | 'no_hire' | 'maybe' | 'needs_review';
+    status?: 'assessed' | 'pending' | 'in_progress' | 'scheduled';
+    min_score?: number;
+    max_score?: number;
+    page?: number;
+    page_size?: number;
+    sort_by?: 'overall_score' | 'created_at' | 'name' | 'recommendation';
+    sort_order?: 'asc' | 'desc';
+  }): Promise<ApiResponse<{
+    candidates: Array<{
+      interview_id: string;
+      candidate_id: string;
+      candidate_name: string;
+      candidate_email: string;
+      job_position_id: string;
+      job_title: string;
+      status: string;
+      interview_completed_at: string;
+      assessment: {
+        id: string;
+        overall_score: number;
+        recommendation: string;
+        technical_score: number;
+        communication_score: number;
+        soft_skills_score: number;
+        proctoring_risk_score: number;
+        created_at: string;
+      } | null;
+    }>;
+    pagination: {
+      page: number;
+      page_size: number;
+      total_count: number;
+      total_pages: number;
+      has_next: boolean;
+      has_previous: boolean;
+    };
+  }>> {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          queryParams.append(key, String(value));
+        }
+      });
+    }
+    const queryString = queryParams.toString();
+    return this.request(`/assessment/v1/dashboard/candidates${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getDashboardStats(jobPositionId?: string): Promise<ApiResponse<{
+    total_interviews: number;
+    completed_interviews: number;
+    assessed_count: number;
+    pending_count: number;
+    in_progress_count: number;
+    recommendations: {
+      hire: number;
+      no_hire: number;
+      maybe: number;
+      needs_review: number;
+    };
+    average_scores: {
+      overall: number | null;
+      technical: number | null;
+      communication: number | null;
+      soft_skills: number | null;
+    };
+  }>> {
+    const queryString = jobPositionId ? `?job_position_id=${jobPositionId}` : '';
+    return this.request(`/assessment/v1/dashboard/stats${queryString}`);
+  }
+
+  async generatePendingAssessments(params?: {
+    job_position_id?: string;
+    limit?: number;
+  }): Promise<ApiResponse<any>> {
+    const queryParams = new URLSearchParams();
+    if (params?.job_position_id) queryParams.append('job_position_id', params.job_position_id);
+    if (params?.limit) queryParams.append('limit', String(params.limit));
+    const queryString = queryParams.toString();
+    return this.request(`/assessment/v1/dashboard/generate-pending${queryString ? `?${queryString}` : ''}`, {
+      method: 'POST',
+    });
   }
 }
 

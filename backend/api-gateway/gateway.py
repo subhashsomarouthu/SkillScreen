@@ -49,8 +49,8 @@ RBAC_RULES = {
 SERVICE_MAP = {
     "user": os.getenv("USER_SERVICE_URL", "http://user-service:8080"),
     "auth": os.getenv("AUTH_SERVICE_URL", "http://sso-service:8080"),
-    "assessment": os.getenv("ASSESSMENT_SERVICE_URL", "http://assessment-service:8080"),
-    "coding": os.getenv("CODING_SERVICE_URL", "http://coding-service:8080"),
+    "assessment": os.getenv("ASSESSMENT_SERVICE_URL", "http://localhost:8005"),
+    "coding": os.getenv("CODING_SERVICE_URL", "http://localhost:8008"),
     "text-service": os.getenv("TEXT_SERVICE_URL", "http://text-service:8080"),
     "audio-ai": os.getenv("AUDIO_AI_SERVICE_URL", "http://audio-ai-service:8080"),
     "video-ai": os.getenv("VIDEO_AI_SERVICE_URL", "http://video-ai-service:8080"),
@@ -71,6 +71,10 @@ async def verify_jwt(request: Request, call_next):
 
         if request.url.path.startswith("/auth/"):
             return await call_next(request)  # allow auth routes
+
+        # Allow public signup route
+        if request.url.path == "/user/signup":
+            return await call_next(request)
 
         # TEMP: allow AI logic routes during development/testing without auth
         if request.url.path.startswith("/ai-logic/"):
@@ -102,6 +106,11 @@ async def verify_jwt(request: Request, call_next):
 
         # TEMP: allow coding routes during development/testing without auth
         if request.url.path.startswith("/coding/"):
+            return await call_next(request)
+
+        # TEMP: allow assessment routes during development/testing without auth
+        # Assessment service handles its own JWT auth via Depends(require_role(...))
+        if request.url.path.startswith("/assessment/"):
             return await call_next(request)
 
         auth_header = request.headers.get("Authorization")
