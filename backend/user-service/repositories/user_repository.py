@@ -18,6 +18,7 @@ organizations_table = Table(
     Column("id", UUID, primary_key=True),
     Column("name", String, nullable=False),
     Column("domain", String),
+    Column("has_coding_access", Boolean, default=False),
     Column("settings", JSONB),
     Column("created_at", TIMESTAMP(timezone=True)),
     Column("updated_at", TIMESTAMP(timezone=True)),
@@ -72,17 +73,18 @@ class UserRepository(BaseRepository):
     # Organization Methods
     # ======================
 
-    def create_organization(self, name: str, domain: str = None, settings: dict = None) -> dict:
+    def create_organization(self, name: str, domain: str = None, settings: dict = None, has_coding_access: bool = False) -> dict:
         """Create a new organization"""
         org_id = uuid.uuid4()
         insert_stmt = organizations_table.insert().values(
             id=org_id,
             name=name,
             domain=domain,
+            has_coding_access=has_coding_access,
             settings=settings or {}
         )
         self.session.execute(insert_stmt)
-        return {"id": str(org_id), "name": name, "domain": domain}
+        return {"id": str(org_id), "name": name, "domain": domain, "has_coding_access": has_coding_access}
 
     def get_organization_by_id(self, org_id: str) -> dict:
         """Get organization by ID"""
@@ -107,6 +109,14 @@ class UserRepository(BaseRepository):
             row["id"] = str(row["id"])
             return row
         return None
+
+    def update_organization(self, org_id: str, **kwargs) -> dict:
+        """Update an organization"""
+        update_stmt = organizations_table.update().where(
+            organizations_table.c.id == uuid.UUID(org_id)
+        ).values(**kwargs)
+        self.session.execute(update_stmt)
+        return self.get_organization_by_id(org_id)
 
     # ======================
     # User Methods

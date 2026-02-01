@@ -41,7 +41,12 @@ class OrganizationItem(BaseModel):
     id: str
     name: str
     domain: Optional[str]
+    has_coding_access: bool
     created_at: Optional[str]
+
+
+class UpdateOrganizationRequest(BaseModel):
+    has_coding_access: Optional[bool] = None
 
 
 class OrganizationListResponse(BaseModel):
@@ -114,7 +119,7 @@ async def get_all_organizations(
             from sqlalchemy import text
             
             query = text("""
-                SELECT id, name, domain, created_at 
+                SELECT id, name, domain, has_coding_access, created_at 
                 FROM organizations 
                 ORDER BY created_at DESC
             """)
@@ -133,6 +138,7 @@ async def get_all_organizations(
                     id=str(org.get("id", "")),
                     name=org.get("name", ""),
                     domain=org.get("domain"),
+                    has_coding_access=org.get("has_coding_access", False),
                     created_at=str(org.get("created_at", "")) if org.get("created_at") else None
                 )
                 for org in paginated_orgs
@@ -258,3 +264,45 @@ async def get_platform_stats(
     except Exception as e:
         log.error(f"Failed to get platform stats: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get stats: {str(e)}")
+
+
+@router.patch("/organizations/{org_id}")
+async def update_organization(
+    org_id: str,
+    request: UpdateOrganizationRequest,
+    current_user: TokenData = Depends(require_admin)
+):
+    """
+    Update an organization's settings.
+    
+    **Admin Only** - Currently supports toggling 'has_coding_access'.
+    """
+    try:
+        from repositories.user_repository import UserRepository
+        
+        with UnitOfWork() as uow:
+            repo = UserRepository(uow)
+            
+            updates = {}
+            if request.has_coding_access is not None:
+                updates["has_coding_access"] = request.has_coding_access
+            
+            if not updates:
+                raise HTTPException(status_code=400, detail="No updates provided")
+            
+            updated_org = repo.update_organization(org_id, **updates)
+            
+            if not updated_org:
+                raise HTTPException(status_code=404, detail="Organization not found")
+            
+            return {
+                "success": True, 
+                "message": "Organization updated successfully",
+                "data": updated_org
+            }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        log.error(f"Failed to update organization: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update organization: {str(e)}")

@@ -159,6 +159,10 @@ class ApiClient {
     return this.request('/user/health');
   }
 
+  async getMe(): Promise<ApiResponse<{ user: User & { organization?: any } }>> {
+    return this.request<{ user: User & { organization?: any } }>('/user/me');
+  }
+
   // Assessment endpoints
   async getQuestions(): Promise<ApiResponse<{ questions: string[] }>> {
     return this.request<{ questions: string[] }>('/assessment/questions');
