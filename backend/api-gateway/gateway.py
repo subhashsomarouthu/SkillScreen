@@ -49,7 +49,7 @@ RBAC_RULES = {
 SERVICE_MAP = {
     "user": os.getenv("USER_SERVICE_URL", "http://user-service:8080"),
     "auth": os.getenv("AUTH_SERVICE_URL", "http://sso-service:8080"),
-    "assessment": os.getenv("ASSESSMENT_SERVICE_URL", "http://localhost:8005"),
+    "assessment": os.getenv("ASSESSMENT_SERVICE_URL", "http://assessment-service:8005"),
     "coding": os.getenv("CODING_SERVICE_URL", "http://localhost:8008"),
     "text-service": os.getenv("TEXT_SERVICE_URL", "http://text-service:8080"),
     "audio-ai": os.getenv("AUDIO_AI_SERVICE_URL", "http://audio-ai-service:8080"),

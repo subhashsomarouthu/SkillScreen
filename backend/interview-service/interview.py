@@ -16,6 +16,7 @@ from db import DBFactory
 # Import controllers
 from controllers.resume_controller import router as resume_router, set_email_service
 from controllers.job_position_controller import router as job_position_controller
+from controllers.admin_controller import router as admin_router
 
 # Import services
 from services.email_service import EmailService
@@ -54,6 +55,7 @@ app.add_middleware(
 # Include routers
 app.include_router(resume_router)
 app.include_router(job_position_controller)
+app.include_router(admin_router)
 
 # In-memory storage for sessions
 sessions_db = {}

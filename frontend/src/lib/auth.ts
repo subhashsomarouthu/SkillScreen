@@ -1,10 +1,11 @@
-export type UserType = 'recruiter' | 'candidate' | 'hiring_manager' | 'team_lead' | 'hr';
+export type UserType = 'recruiter' | 'candidate' | 'hiring_manager' | 'team_lead' | 'hr' | 'admin';
 
 export interface User {
   id: string;
   name: string;
   email: string;
   userType: UserType;
+  role: string;
   firstName?: string;
   lastName?: string;
   organizationId?: string;
@@ -59,15 +60,17 @@ export async function mockLogin(usernameOrEmail: string, password: string): Prom
     }
 
     // Extract user info from the response
-    const userData = response.data.user;
+    const userData = response.data.user as any;
     const user: User = {
       id: userData.id,
       name: `${userData.first_name || ''} ${userData.last_name || ''}`.trim() || userData.email,
       email: userData.email,
       userType: userData.role as UserType,
+      role: userData.role,
       firstName: userData.first_name,
       lastName: userData.last_name,
       organizationId: userData.organization_id,
+      organizationName: userData.organization_name,
     };
 
     return {
@@ -90,7 +93,7 @@ export interface SignupData {
   companyName: string;
   // Optional
   companyDomain?: string;
-  role?: 'recruiter' | 'hiring_manager' | 'team_lead' | 'hr';
+  role?: 'recruiter' | 'hiring_manager' | 'team_lead' | 'hr' | 'admin';
   interviewType?: 'behavioral' | 'technical' | 'coding' | 'system_design';
   jobRoleName?: string;
 }
@@ -130,7 +133,7 @@ export async function realRegister(userData: SignupData): Promise<{ success: boo
 }
 
 // Keep for backwards compatibility - redirects to realRegister
-export async function mockRegister(userData: { fullName: string; email: string; password: string; userType: UserType; companyName?: string }): Promise<AuthToken> {
+export async function mockRegister(userData: { fullName: string; email: string; password: string; userType: UserType; companyName?: string; role?: 'recruiter' | 'hiring_manager' | 'team_lead' | 'hr' | 'admin' }): Promise<AuthToken> {
   // If companyName is provided, use realRegister
   if (userData.companyName) {
     const result = await realRegister({
@@ -148,6 +151,7 @@ export async function mockRegister(userData: { fullName: string; email: string; 
     name: userData.fullName,
     email: userData.email,
     userType: userData.userType,
+    role: userData.role || 'recruiter',
   };
   return createAuthToken(user);
 }

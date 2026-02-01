@@ -447,21 +447,19 @@ export default function RecruiterDashboard() {
         <div className="flex space-x-1 mb-8 bg-primary-200/10 rounded-lg p-1">
           <button
             onClick={() => setActiveTab('interviews')}
-            className={`px-6 py-3 rounded-md font-semibold transition-colors ${
-              activeTab === 'interviews'
+            className={`px-6 py-3 rounded-md font-semibold transition-colors ${activeTab === 'interviews'
                 ? 'bg-white text-primary-300'
                 : 'text-white hover:bg-primary-200/20'
-            }`}
+              }`}
           >
             Interviews
           </button>
           <button
             onClick={() => setActiveTab('candidates')}
-            className={`px-6 py-3 rounded-md font-semibold transition-colors ${
-              activeTab === 'candidates'
+            className={`px-6 py-3 rounded-md font-semibold transition-colors ${activeTab === 'candidates'
                 ? 'bg-white text-primary-300'
                 : 'text-white hover:bg-primary-200/20'
-            }`}
+              }`}
           >
             Candidates
             {hirableCandidates.length > 0 && (
@@ -472,11 +470,10 @@ export default function RecruiterDashboard() {
           </button>
           <button
             onClick={() => setActiveTab('jobs')}
-            className={`px-6 py-3 rounded-md font-semibold transition-colors ${
-              activeTab === 'jobs'
+            className={`px-6 py-3 rounded-md font-semibold transition-colors ${activeTab === 'jobs'
                 ? 'bg-white text-primary-300'
                 : 'text-white hover:bg-primary-200/20'
-            }`}
+              }`}
           >
             Job Positions
           </button>
@@ -533,7 +530,7 @@ export default function RecruiterDashboard() {
                             </div>
                             <div>
                               <span className="text-white font-medium block">{candidate.candidate_name || 'Unknown'}</span>
-                              <span className="text-white/50 text-sm">{candidate.candidate_email}</span>
+                              <span className="text-white/50 text-sm break-all">{candidate.candidate_email}</span>
                             </div>
                           </div>
                         </td>
@@ -592,11 +589,10 @@ export default function RecruiterDashboard() {
                   <button
                     key={filter}
                     onClick={() => setCandidateFilter(filter)}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      candidateFilter === filter
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${candidateFilter === filter
                         ? 'bg-white text-primary-300'
                         : 'bg-white/10 text-white hover:bg-white/20'
-                    }`}
+                      }`}
                   >
                     {filter === 'all' ? 'All' : filter === 'hire' ? 'Recommended' : filter.charAt(0).toUpperCase() + filter.slice(1)}
                   </button>
@@ -808,11 +804,10 @@ export default function RecruiterDashboard() {
                                     setAllowedLanguages([...allowedLanguages, lang]);
                                   }
                                 }}
-                                className={`px-2 py-1 rounded text-xs transition-colors ${
-                                  allowedLanguages.includes(lang)
+                                className={`px-2 py-1 rounded text-xs transition-colors ${allowedLanguages.includes(lang)
                                     ? 'bg-blue-500 text-white'
                                     : 'bg-primary-200/20 text-white/70 hover:bg-primary-200/40'
-                                }`}
+                                  }`}
                               >
                                 {lang}
                               </button>
@@ -835,9 +830,8 @@ export default function RecruiterDashboard() {
                               {availableCodingQuestions.map((q) => (
                                 <label
                                   key={q.id}
-                                  className={`flex items-start gap-2 p-1.5 rounded cursor-pointer hover:bg-primary-200/20 ${
-                                    selectedCodingQuestionIds.includes(q.id) ? 'bg-primary-200/20' : ''
-                                  }`}
+                                  className={`flex items-start gap-2 p-1.5 rounded cursor-pointer hover:bg-primary-200/20 ${selectedCodingQuestionIds.includes(q.id) ? 'bg-primary-200/20' : ''
+                                    }`}
                                 >
                                   <input
                                     type="checkbox"
@@ -854,10 +848,9 @@ export default function RecruiterDashboard() {
                                   <div className="flex-1 min-w-0">
                                     <div className="text-xs text-white truncate">{q.title}</div>
                                     <div className="text-[10px] text-white/50">
-                                      {q.difficulty && <span className={`mr-2 ${
-                                        q.difficulty === 'easy' ? 'text-green-400' :
-                                        q.difficulty === 'medium' ? 'text-yellow-400' : 'text-red-400'
-                                      }`}>{q.difficulty}</span>}
+                                      {q.difficulty && <span className={`mr-2 ${q.difficulty === 'easy' ? 'text-green-400' :
+                                          q.difficulty === 'medium' ? 'text-yellow-400' : 'text-red-400'
+                                        }`}>{q.difficulty}</span>}
                                       {q.language && <span>{q.language}</span>}
                                     </div>
                                   </div>
@@ -880,13 +873,12 @@ export default function RecruiterDashboard() {
                             key={level}
                             type="button"
                             onClick={() => setDifficulty(level)}
-                            className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-                              difficulty === level
+                            className={`px-3 py-1 rounded text-xs font-medium transition-colors ${difficulty === level
                                 ? level === 'easy' ? 'bg-green-500 text-white'
                                   : level === 'medium' ? 'bg-yellow-500 text-white'
-                                  : 'bg-red-500 text-white'
+                                    : 'bg-red-500 text-white'
                                 : 'bg-primary-200/20 text-white/70 hover:bg-primary-200/40'
-                            }`}
+                              }`}
                           >
                             {level.charAt(0).toUpperCase() + level.slice(1)}
                           </button>

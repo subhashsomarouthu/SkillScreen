@@ -250,11 +250,7 @@ def get_current_user_profile(current_user: TokenData = Depends(get_current_user)
         user = repo.get_user_by_id(current_user.user_id)
         if user:
             user.pop("password_hash", None)
-            org = repo.get_organization_by_id(user["organization_id"])
-            return create_response({
-                "user": user,
-                "organization": org
-            })
+            return create_response({"user": user})
         else:
             raise HTTPException(status_code=404, detail="User not found")
 

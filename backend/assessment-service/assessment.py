@@ -8,6 +8,7 @@ from config.logger import logger
 from controllers.assessment_controller import router as assessment_router
 from controllers.health_controller import router as health_router
 from controllers.dashboard_controller import router as dashboard_router
+from controllers.admin_controller import router as admin_router
 from scheduler.scheduler import assessment_scheduler
 import uvicorn
 import traceback
@@ -132,6 +133,9 @@ app.include_router(assessment_router)
 
 # Recruiter Dashboard
 app.include_router(dashboard_router)
+
+# Admin Dashboard (cross-organization access)
+app.include_router(admin_router)
 
 
 # ==========================================

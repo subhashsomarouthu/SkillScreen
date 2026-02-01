@@ -15,16 +15,23 @@ import { AnimatedGradientBackground } from '@/components/ui/animated-gradient-ba
 export default function Home() {
   const router = useRouter();
   const { user, isAuthenticated, isLoading, getToken } = useAuth();
-  
+
   useEffect(() => {
     // Log the token
     const token = getToken();
     console.log('Current JWT Token:', token);
-    
-    // Original redirect logic
+
+    // Redirect authenticated users to their appropriate dashboard
     if (isAuthenticated && user && !isLoading) {
-      const dashboardPath = user.userType === 'recruiter' ? '/recruiter' : '/candidate';
-      router.push(dashboardPath);
+      // Check role first (admin takes priority)
+      if (user.role === 'admin') {
+        router.push('/admin');
+      } else if (user.role === 'recruiter' || user.role === 'hiring_manager' || user.role === 'team_lead' || user.role === 'hr') {
+        router.push('/recruiter');
+      } else {
+        // Fallback to candidate for other roles
+        router.push('/candidate');
+      }
     }
   }, [isAuthenticated, user, isLoading, router, getToken]);
 

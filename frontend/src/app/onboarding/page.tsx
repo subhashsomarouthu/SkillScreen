@@ -106,7 +106,7 @@ export default function Onboarding() {
 
   const validateStep = () => {
     const newErrors: Errors = {};
-    
+
     if (step === 1 && !userType) {
       newErrors.userType = 'Please select your role';
     }
@@ -145,7 +145,7 @@ export default function Onboarding() {
       setIsRegistering(true);
       setRippleEffect(true);
       setTimeout(() => setRippleEffect(false), 1000);
-      
+
       try {
         // Register the user
         const result = await register({
@@ -177,7 +177,7 @@ export default function Onboarding() {
     } else {
       // Regular steps - trigger ripple effect
       setRippleEffect(true);
-      
+
       // Reset ripple effect after animation
       setTimeout(() => {
         setRippleEffect(false);
@@ -225,21 +225,19 @@ export default function Onboarding() {
             <div className="flex flex-col sm:flex-row justify-center gap-6">
               <button
                 onClick={() => setUserType('recruiter')}
-                className={`px-8 py-4 rounded-xl transition-all duration-300 transform hover:scale-105 ${
-                  userType === 'recruiter'
+                className={`px-8 py-4 rounded-xl transition-all duration-300 transform hover:scale-105 ${userType === 'recruiter'
                     ? 'bg-white text-black'
                     : 'bg-white/10 hover:bg-white/20 text-white'
-                }`}
+                  }`}
               >
                 Recruiter
               </button>
               <button
                 onClick={() => setUserType('job_seeker')}
-                className={`px-8 py-4 rounded-xl transition-all duration-300 transform hover:scale-105 relative ${
-                  userType === 'job_seeker'
+                className={`px-8 py-4 rounded-xl transition-all duration-300 transform hover:scale-105 relative ${userType === 'job_seeker'
                     ? 'bg-white text-black'
                     : 'bg-white/10 hover:bg-white/20 text-white'
-                }`}
+                  }`}
               >
                 Job Seeker
                 <span className="absolute -top-2 -right-2 px-2 py-0.5 bg-blue-500 text-white text-xs rounded-full">
@@ -263,7 +261,7 @@ export default function Onboarding() {
         );
 
       case 2:
-  return (
+        return (
           <div className="bg-black/40 backdrop-blur-md rounded-2xl p-8 md:p-12 w-full max-w-2xl mx-auto shadow-2xl">
             <h2 className="text-3xl font-bold text-white mb-6 text-center">
               {userType === 'recruiter' ? 'Tell us about your company' : 'Tell us about yourself'}
@@ -282,8 +280,8 @@ export default function Onboarding() {
                 {errors.fullName && (
                   <p className="text-red-400 text-sm">{errors.fullName}</p>
                 )}
-        </div>
-              
+              </div>
+
               <div className="space-y-2">
                 <input
                   type="email"
@@ -348,10 +346,10 @@ export default function Onboarding() {
                       onChange={handleInputChange}
                       className="w-full px-4 py-3 bg-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-white/30"
                     >
-                      <option value="recruiter">Recruiter</option>
-                      <option value="hiring_manager">Hiring Manager</option>
-                      <option value="team_lead">Team Lead</option>
-                      <option value="hr">HR</option>
+                      <option value="recruiter" className="bg-gray-900 text-white">Recruiter</option>
+                      <option value="hiring_manager" className="bg-gray-900 text-white">Hiring Manager</option>
+                      <option value="team_lead" className="bg-gray-900 text-white">Team Lead</option>
+                      <option value="hr" className="bg-gray-900 text-white">HR</option>
                     </select>
                   </div>
 
@@ -388,11 +386,11 @@ export default function Onboarding() {
                         onChange={handleInputChange}
                         className="w-full px-4 py-3 bg-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-white/30"
                       >
-                        <option value="">Select Interview Type</option>
-                        <option value="behavioral">Behavioral</option>
-                        <option value="technical">Technical</option>
-                        <option value="coding">Coding</option>
-                        <option value="system_design">System Design</option>
+                        <option value="" className="bg-gray-900 text-white">Select Interview Type</option>
+                        <option value="behavioral" className="bg-gray-900 text-white">Behavioral</option>
+                        <option value="technical" className="bg-gray-900 text-white">Technical</option>
+                        <option value="coding" className="bg-gray-900 text-white">Coding</option>
+                        <option value="system_design" className="bg-gray-900 text-white">System Design</option>
                       </select>
                     </div>
 
@@ -470,11 +468,11 @@ export default function Onboarding() {
                       onChange={handleInputChange}
                       className="w-full px-4 py-3 bg-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-white/30"
                     >
-                      <option value="">Select Availability</option>
-                      <option value="immediate">Immediate</option>
-                      <option value="2_weeks">2 Weeks Notice</option>
-                      <option value="1_month">1 Month Notice</option>
-                      <option value="3_months">3 Months Notice</option>
+                      <option value="" className="bg-gray-900 text-white">Select Availability</option>
+                      <option value="immediate" className="bg-gray-900 text-white">Immediate</option>
+                      <option value="2_weeks" className="bg-gray-900 text-white">2 Weeks Notice</option>
+                      <option value="1_month" className="bg-gray-900 text-white">1 Month Notice</option>
+                      <option value="3_months" className="bg-gray-900 text-white">3 Months Notice</option>
                     </select>
                   </div>
                 </>
@@ -502,11 +500,10 @@ export default function Onboarding() {
                     </div>
                     <span className="text-white text-lg">Camera Access</span>
                   </div>
-                  <span className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                    permissions.camera 
-                      ? 'bg-green-500/20 text-green-300 border border-green-500/30' 
+                  <span className={`px-4 py-2 rounded-lg text-sm font-medium ${permissions.camera
+                      ? 'bg-green-500/20 text-green-300 border border-green-500/30'
                       : 'bg-red-500/20 text-red-300 border border-red-500/30'
-                  }`}>
+                    }`}>
                     {permissions.camera ? 'Granted' : 'Required'}
                   </span>
                 </div>
@@ -520,13 +517,12 @@ export default function Onboarding() {
                     </div>
                     <span className="text-white text-lg">Microphone Access</span>
                   </div>
-                  <span className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                    permissions.microphone 
-                      ? 'bg-green-500/20 text-green-300 border border-green-500/30' 
+                  <span className={`px-4 py-2 rounded-lg text-sm font-medium ${permissions.microphone
+                      ? 'bg-green-500/20 text-green-300 border border-green-500/30'
                       : 'bg-red-500/20 text-red-300 border border-red-500/30'
-                  }`}>
+                    }`}>
                     {permissions.microphone ? 'Granted' : 'Required'}
-                    </span>
+                  </span>
                 </div>
 
                 {!permissions.camera || !permissions.microphone ? (
@@ -560,23 +556,21 @@ export default function Onboarding() {
           {[1, 2, 3].map((i) => (
             <div key={i} className="flex flex-col items-center">
               <div
-                className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                  step === i 
-                    ? 'bg-white scale-125' 
-                    : step > i 
-                      ? 'bg-green-500' 
+                className={`w-3 h-3 rounded-full transition-all duration-300 ${step === i
+                    ? 'bg-white scale-125'
+                    : step > i
+                      ? 'bg-green-500'
                       : 'bg-white/30'
-                }`}
+                  }`}
               />
               <div className="h-1 w-16 bg-white/10 mt-2 rounded-full overflow-hidden">
-                <div 
-                  className={`h-full bg-white transition-all duration-500 ${
-                    step > i 
-                      ? 'w-full' 
-                      : step === i 
-                        ? 'w-1/2' 
+                <div
+                  className={`h-full bg-white transition-all duration-500 ${step > i
+                      ? 'w-full'
+                      : step === i
+                        ? 'w-1/2'
                         : 'w-0'
-                  }`}
+                    }`}
                 />
               </div>
             </div>
@@ -599,11 +593,10 @@ export default function Onboarding() {
             <button
               onClick={handleNext}
               disabled={(step === 1 && (!userType || userType === 'job_seeker')) || isRegistering}
-              className={`px-6 py-2 rounded-xl transition-all duration-300 flex items-center gap-2 ${
-                (step === 1 && (!userType || userType === 'job_seeker')) || isRegistering
+              className={`px-6 py-2 rounded-xl transition-all duration-300 flex items-center gap-2 ${(step === 1 && (!userType || userType === 'job_seeker')) || isRegistering
                   ? 'bg-white/10 text-white/50 cursor-not-allowed'
                   : 'bg-white text-black hover:bg-white/90'
-              }`}
+                }`}
             >
               {isRegistering ? (
                 <>
@@ -627,14 +620,14 @@ export default function Onboarding() {
 
   return (
     <>
-      <ShaderAnimation 
+      <ShaderAnimation
         currentStep={step}
         totalSteps={3}
         progress={
-          step === 1 
-            ? userType ? 0.5 : 0 
-            : step === 2 
-              ? formData.fullName && formData.email && formData.password ? 0.75 : 0.5 
+          step === 1
+            ? userType ? 0.5 : 0
+            : step === 2
+              ? formData.fullName && formData.email && formData.password ? 0.75 : 0.5
               : permissions.camera && permissions.microphone ? 1 : 0.75
         }
         rippleEffect={rippleEffect}
@@ -642,7 +635,7 @@ export default function Onboarding() {
         isCompleteRipple={step === 3 && rippleEffect}
         fadeOut={showWelcome}
       />
-      
+
       {/* Transition Overlay - Full screen fade */}
       <AnimatePresence>
         {isTransitioning && (
@@ -670,7 +663,7 @@ export default function Onboarding() {
       {/* Onboarding Modal */}
       <AnimatePresence>
         {!showWelcome && (
-          <motion.div 
+          <motion.div
             className="relative min-h-screen flex items-center justify-center p-6"
             initial={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -689,7 +682,7 @@ export default function Onboarding() {
         {showWelcome && (
           <motion.div
             className="fixed inset-0 bg-black/60 backdrop-blur-lg z-15"
-            initial={{ 
+            initial={{
               scale: 0.1,
               borderRadius: "1rem",
               x: "50%",
@@ -697,7 +690,7 @@ export default function Onboarding() {
               translateX: "-50%",
               translateY: "-50%"
             }}
-            animate={{ 
+            animate={{
               scale: isTransitioning ? 1.1 : 1,
               borderRadius: "0rem",
               x: "0%",
@@ -706,7 +699,7 @@ export default function Onboarding() {
               translateY: "0%",
               opacity: isTransitioning ? 0 : 1
             }}
-            transition={{ 
+            transition={{
               duration: isTransitioning ? 0.5 : 1.0,
               ease: [0.25, 0.1, 0.25, 1]
             }}
@@ -714,50 +707,50 @@ export default function Onboarding() {
         )}
       </AnimatePresence>
 
-       {/* Welcome Text and Button */}
-       <AnimatePresence>
-         {showWelcome && (
-           <motion.div 
-             className="fixed inset-0 flex flex-col justify-center items-center p-6 z-30 pointer-events-none"
-             initial={{ opacity: 0 }}
-             animate={{ opacity: isTransitioning ? 0 : 1 }}
-             exit={{ opacity: 0 }}
-             transition={{ duration: 0.5 }}
-           >
+      {/* Welcome Text and Button */}
+      <AnimatePresence>
+        {showWelcome && (
+          <motion.div
+            className="fixed inset-0 flex flex-col justify-center items-center p-6 z-30 pointer-events-none"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: isTransitioning ? 0 : 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5 }}
+          >
             {/* Main Text Container */}
             <div className="flex flex-col items-center justify-center flex-1 max-w-7xl mx-auto">
               <div className="text-center">
                 {/* Smaller "Welcome To" text */}
-                <motion.div 
+                <motion.div
                   className="text-white text-3xl md:text-4xl lg:text-5xl tracking-[0.2em] leading-none mb-6"
-                  style={{ 
+                  style={{
                     fontFamily: 'Korataki, system-ui, sans-serif',
                     fontWeight: 800,
                     textShadow: '0 0 20px rgba(255,255,255,0.3)'
                   }}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  transition={{ 
-                    duration: 1.0, 
+                  transition={{
+                    duration: 1.0,
                     delay: 0.5,
                     ease: [0.25, 0.1, 0.25, 1]
                   }}
                 >
                   WELCOME TO
                 </motion.div>
-                
+
                 {/* Large centered "IntervuAI" text */}
-                <motion.div 
+                <motion.div
                   className="text-white text-6xl md:text-8xl lg:text-9xl tracking-[0.2em] leading-none"
-                  style={{ 
+                  style={{
                     fontFamily: 'Korataki, system-ui, sans-serif',
                     fontWeight: 800,
                     textShadow: '0 0 30px rgba(255,255,255,0.3)'
                   }}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  transition={{ 
-                    duration: 1.0, 
+                  transition={{
+                    duration: 1.0,
                     delay: 1.5,
                     ease: [0.25, 0.1, 0.25, 1]
                   }}
@@ -766,7 +759,7 @@ export default function Onboarding() {
                 </motion.div>
               </div>
             </div>
-            
+
             {/* Button at bottom */}
             <div className="w-full flex justify-center pb-12">
               <motion.button
@@ -774,8 +767,8 @@ export default function Onboarding() {
                 className="px-12 py-4 bg-white text-black rounded-full text-lg font-medium hover:bg-white/90 transition-all duration-300 transform hover:scale-105 pointer-events-auto"
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ 
-                  duration: 0.8, 
+                transition={{
+                  duration: 0.8,
                   delay: 1.5,
                   ease: [0.25, 0.1, 0.25, 1]
                 }}
