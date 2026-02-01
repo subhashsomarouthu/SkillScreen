@@ -427,6 +427,21 @@ class ServiceClient:
             f"/assessments/{interview_id}"
         )
 
+    # ============================================
+    # Interview Service Methods
+    # ============================================
+
+    async def get_interview_details(
+        self,
+        interview_id: str
+    ) -> Dict[str, Any]:
+        """Get interview details (including mode)"""
+        return await self._request(
+            "GET",
+            "interview_service",
+            f"/api/interviews/{interview_id}"
+        )
+
 
 # Global service client instance
 service_client = ServiceClient()

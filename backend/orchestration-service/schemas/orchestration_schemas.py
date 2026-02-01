@@ -6,7 +6,7 @@ class NextQuestionRequest(BaseModel):
     """Request when candidate clicks 'Next Question'"""
     interview_id: UUID = Field(..., description="Interview UUID")
     session_id: UUID = Field(..., description="Current session/question UUID")
-    media_file_id: UUID = Field(..., description="Media file ID from media-service")
+    media_file_id: Optional[UUID] = Field(None, description="Media file ID from media-service (optional for text-only)")
     candidate_response: str = Field(..., description="Candidate's text answer")
     
     class Config:
