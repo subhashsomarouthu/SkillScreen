@@ -18,7 +18,6 @@ organizations_table = Table(
     Column("id", UUID, primary_key=True),
     Column("name", String, nullable=False),
     Column("domain", String),
-    Column("has_coding_access", Boolean, default=False),
     Column("settings", JSONB),
     Column("created_at", TIMESTAMP(timezone=True)),
     Column("updated_at", TIMESTAMP(timezone=True)),
@@ -76,12 +75,16 @@ class UserRepository(BaseRepository):
     def create_organization(self, name: str, domain: str = None, settings: dict = None, has_coding_access: bool = False) -> dict:
         """Create a new organization"""
         org_id = uuid.uuid4()
+        
+        # Store has_coding_access in settings
+        org_settings = settings or {}
+        org_settings["has_coding_access"] = has_coding_access
+        
         insert_stmt = organizations_table.insert().values(
             id=org_id,
             name=name,
             domain=domain,
-            has_coding_access=has_coding_access,
-            settings=settings or {}
+            settings=org_settings
         )
         self.session.execute(insert_stmt)
         return {"id": str(org_id), "name": name, "domain": domain, "has_coding_access": has_coding_access}
@@ -95,6 +98,11 @@ class UserRepository(BaseRepository):
         if result:
             row = dict(result._mapping)
             row["id"] = str(row["id"])
+            
+            # Extract has_coding_access from settings
+            settings = row.get("settings") or {}
+            row["has_coding_access"] = settings.get("has_coding_access", False)
+            
             return row
         return None
 
@@ -107,14 +115,37 @@ class UserRepository(BaseRepository):
         if result:
             row = dict(result._mapping)
             row["id"] = str(row["id"])
+            
+            # Extract has_coding_access from settings
+            settings = row.get("settings") or {}
+            row["has_coding_access"] = settings.get("has_coding_access", False)
+            
             return row
         return None
 
     def update_organization(self, org_id: str, **kwargs) -> dict:
         """Update an organization"""
+        
+        # Handle settings update properly especially for has_coding_access
+        clean_kwargs = kwargs.copy()
+        
+        # If we need to update has_coding_access, we must read-modify-write settings
+        if "has_coding_access" in clean_kwargs:
+            new_access_value = clean_kwargs.pop("has_coding_access")
+            
+            # Get current settings
+            current_org = self.get_organization_by_id(org_id)
+            if not current_org:
+                return None
+                
+            settings = current_org.get("settings") or {}
+            settings["has_coding_access"] = new_access_value
+            clean_kwargs["settings"] = settings
+            
         update_stmt = organizations_table.update().where(
             organizations_table.c.id == uuid.UUID(org_id)
-        ).values(**kwargs)
+        ).values(**clean_kwargs)
+        
         self.session.execute(update_stmt)
         return self.get_organization_by_id(org_id)
 

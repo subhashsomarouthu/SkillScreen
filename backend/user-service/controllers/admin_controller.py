@@ -119,7 +119,7 @@ async def get_all_organizations(
             from sqlalchemy import text
             
             query = text("""
-                SELECT id, name, domain, has_coding_access, created_at 
+                SELECT id, name, domain, settings, created_at 
                 FROM organizations 
                 ORDER BY created_at DESC
             """)
@@ -138,7 +138,7 @@ async def get_all_organizations(
                     id=str(org.get("id", "")),
                     name=org.get("name", ""),
                     domain=org.get("domain"),
-                    has_coding_access=org.get("has_coding_access", False),
+                    has_coding_access=(org.get("settings") or {}).get("has_coding_access", False),
                     created_at=str(org.get("created_at", "")) if org.get("created_at") else None
                 )
                 for org in paginated_orgs
