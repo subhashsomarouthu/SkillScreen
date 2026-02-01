@@ -90,7 +90,7 @@ class DashboardStatsResponse(BaseModel):
 
 @router.get("/candidates", response_model=DashboardListResponse)
 async def get_dashboard_candidates(
-    current_user: TokenData = Depends(require_role("recruiter", "hiring_manager", "hr", "team_lead")),
+    current_user: TokenData = Depends(require_role("admin", "recruiter", "hiring_manager", "hr", "team_lead")),
     job_position_id: Optional[str] = Query(None, description="Filter by job position UUID"),
     recommendation: Optional[str] = Query(None, description="Filter by recommendation: hire, no_hire, maybe, needs_review"),
     status: Optional[str] = Query(None, description="Filter by status: assessed, pending, in_progress"),
@@ -130,8 +130,11 @@ async def get_dashboard_candidates(
             repo = AssessmentRepository(uow)
 
             # Organization ID comes from JWT token (secure multi-tenant filtering)
+            # Admin gets all (None), others get their specific org
+            org_id = None if current_user.role == "admin" else current_user.organization_id
+            
             result = repo.get_dashboard_candidates(
-                organization_id=current_user.organization_id,
+                organization_id=org_id,
                 job_position_id=job_position_id,
                 recommendation=recommendation,
                 status=status,
@@ -154,7 +157,7 @@ async def get_dashboard_candidates(
 
 @router.get("/stats", response_model=DashboardStatsResponse)
 async def get_dashboard_stats(
-    current_user: TokenData = Depends(require_role("recruiter", "hiring_manager", "hr", "team_lead")),
+    current_user: TokenData = Depends(require_role("admin", "recruiter", "hiring_manager", "hr", "team_lead")),
     job_position_id: Optional[str] = Query(None, description="Filter by job position UUID")
 ):
     """
@@ -181,8 +184,11 @@ async def get_dashboard_stats(
             repo = AssessmentRepository(uow)
 
             # Organization ID comes from JWT token (secure multi-tenant filtering)
+            # Admin gets all (None), others get their specific org
+            org_id = None if current_user.role == "admin" else current_user.organization_id
+            
             stats = repo.get_dashboard_stats(
-                organization_id=current_user.organization_id,
+                organization_id=org_id,
                 job_position_id=job_position_id
             )
 

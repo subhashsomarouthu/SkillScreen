@@ -1,6 +1,8 @@
 'use client';
 
 import AdminDashboard from '@/components/AdminDashboard';
+import NavBar from '@/components/NavBar';
+import Footer from '@/components/Footer';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
@@ -33,5 +35,11 @@ export default function AdminPage() {
         return null;
     }
 
-    return <AdminDashboard />;
+    return (
+        <>
+            <NavBar />
+            <AdminDashboard />
+            <Footer />
+        </>
+    );
 }

@@ -17,7 +17,7 @@ export default function NavBar() {
   const isActive = (path: string) => pathname === path;
 
   const initialState = {
-    background: "rgba(18, 18, 18, 0)",
+    background: "rgba(18, 18, 18, 0.95)",
     width: "100%",
     maxWidth: "1400px",
     borderRadius: "0px",
@@ -142,16 +142,29 @@ export default function NavBar() {
         <motion.div style={{ transform: signOutTransform }} className="flex items-center space-x-4 ml-auto">
           {/* Navigation Links */}
           <div className="hidden md:flex items-center space-x-2 mr-2">
-            {/* Show dashboard link based on user type */}
-            {isAuthenticated && user && (
+            {/* Admin Dashboard - Only for admin users */}
+            {isAuthenticated && user && user.userType === 'admin' && (
               <Link
-                href={user.userType === 'recruiter' ? '/recruiter' : '/candidate'}
-                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${isActive(user.userType === 'recruiter' ? '/recruiter' : '/candidate')
-                    ? 'bg-white/10 text-white shadow-lg shadow-black/10'
-                    : 'text-white/70 hover:bg-white/5 hover:text-white hover:shadow-lg hover:shadow-black/10'
+                href="/admin"
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${isActive('/admin')
+                  ? 'bg-white/10 text-white shadow-lg shadow-black/10'
+                  : 'text-white/70 hover:bg-white/5 hover:text-white hover:shadow-lg hover:shadow-black/10'
                   }`}
               >
-                {user.userType === 'recruiter' ? 'Recruiter Dashboard' : 'Candidate Dashboard'}
+                Admin Dashboard
+              </Link>
+            )}
+
+            {/* Show dashboard link based on user type */}
+            {isAuthenticated && user && ['admin', 'recruiter', 'hiring_manager', 'team_lead', 'hr'].includes(user.userType) && (
+              <Link
+                href="/recruiter"
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${isActive('/recruiter')
+                  ? 'bg-white/10 text-white shadow-lg shadow-black/10'
+                  : 'text-white/70 hover:bg-white/5 hover:text-white hover:shadow-lg hover:shadow-black/10'
+                  }`}
+              >
+                {user.userType === 'admin' ? 'Interview Setup' : 'Recruiter Dashboard'}
               </Link>
             )}
 
@@ -159,8 +172,8 @@ export default function NavBar() {
             <Link
               href="/contact"
               className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${isActive('/contact')
-                  ? 'bg-white/10 text-white shadow-lg shadow-black/10'
-                  : 'text-white/70 hover:bg-white/5 hover:text-white hover:shadow-lg hover:shadow-black/10'
+                ? 'bg-white/10 text-white shadow-lg shadow-black/10'
+                : 'text-white/70 hover:bg-white/5 hover:text-white hover:shadow-lg hover:shadow-black/10'
                 }`}
             >
               Contact
@@ -171,8 +184,8 @@ export default function NavBar() {
               <Link
                 href="/profile"
                 className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${isActive('/profile')
-                    ? 'bg-white/10 text-white shadow-lg shadow-black/10'
-                    : 'text-white/70 hover:bg-white/5 hover:text-white hover:shadow-lg hover:shadow-black/10'
+                  ? 'bg-white/10 text-white shadow-lg shadow-black/10'
+                  : 'text-white/70 hover:bg-white/5 hover:text-white hover:shadow-lg hover:shadow-black/10'
                   }`}
               >
                 Profile
