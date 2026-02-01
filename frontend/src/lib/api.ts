@@ -39,7 +39,7 @@ export interface SignupRequest {
   password: string;
   first_name: string;
   last_name: string;
-  role?: 'recruiter' | 'hiring_manager' | 'team_lead' | 'hr';
+  role?: 'recruiter' | 'hiring_manager' | 'team_lead' | 'hr' | 'admin';
   // Interview template (optional)
   interview_type?: 'behavioral' | 'technical' | 'coding' | 'system_design';
   job_role_name?: string;
@@ -81,7 +81,7 @@ class ApiClient {
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
     const url = `${this.baseUrl}${endpoint}`;
-    
+
     const defaultHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
     };
@@ -102,7 +102,7 @@ class ApiClient {
 
     try {
       const response = await fetch(url, config);
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -553,15 +553,15 @@ class ApiClient {
       return (payload && typeof payload === 'object' && 'success' in payload)
         ? payload
         : {
-            success: false,
-            data: null,
-            error: `Upload failed with status ${response.status}`,
-            meta: {
-              timestamp: new Date().toISOString(),
-              request_id: '',
-              version: 'v1',
-            },
-          };
+          success: false,
+          data: null,
+          error: `Upload failed with status ${response.status}`,
+          meta: {
+            timestamp: new Date().toISOString(),
+            request_id: '',
+            version: 'v1',
+          },
+        };
     }
 
     return payload as ApiResponse<any>;
@@ -578,7 +578,7 @@ class ApiClient {
   }): Promise<ApiResponse<any>> {
     const url = `${this.baseUrl}/text-service/candidates`;
     const token = this.getToken();
-    
+
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -600,7 +600,7 @@ class ApiClient {
   }): Promise<ApiResponse<any>> {
     const url = `${this.baseUrl}/text-service/jobs`;
     const token = this.getToken();
-    
+
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -622,7 +622,7 @@ class ApiClient {
   }): Promise<ApiResponse<any>> {
     const url = `${this.baseUrl}/text-service/interviews/start`;
     const token = this.getToken();
-    
+
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -645,7 +645,7 @@ class ApiClient {
   async getInterviewQuestions(sessionId: string): Promise<ApiResponse<any>> {
     const url = `${this.baseUrl}/text-service/interviews/${sessionId}/questions`;
     const token = this.getToken();
-    
+
     const response = await fetch(url, {
       method: 'GET',
       headers: {
@@ -669,7 +669,7 @@ class ApiClient {
   }): Promise<ApiResponse<any>> {
     const url = `${this.baseUrl}/interview/api/email/send-invitation`;
     const token = this.getToken();
-    
+
     const response = await fetch(url, {
       method: 'POST',
       headers: {

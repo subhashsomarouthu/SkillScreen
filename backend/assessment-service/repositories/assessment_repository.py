@@ -670,6 +670,38 @@ class AssessmentRepository(BaseRepository):
         self.session.execute(query)
         self.session.commit()
 
+    def get_all_assessments(self, limit: int = 1000) -> List[Dict]:
+        """
+        Get all assessments across all organizations (for admin dashboard).
+        
+        Returns:
+            List of assessment records with interview and organization info
+        """
+        query = text("""
+            SELECT 
+                a.id,
+                a.interview_id,
+                a.overall_score,
+                a.hard_skills_score,
+                a.soft_skills_score,
+                a.communication_score,
+                a.technical_score,
+                a.proctoring_risk_score,
+                a.recommendation,
+                a.summary,
+                a.created_at,
+                i.organization_id,
+                i.candidate_id
+            FROM assessments a
+            JOIN interviews i ON a.interview_id = i.id
+            ORDER BY a.created_at DESC
+            LIMIT :limit
+        """)
+        
+        result = self.session.execute(query, {"limit": limit})
+        return [dict(row._mapping) for row in result]
+
+
     # ==========================================
     # RECRUITER DASHBOARD METHODS
     # ==========================================
