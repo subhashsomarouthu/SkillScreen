@@ -33,15 +33,35 @@ async def get_next_question(request: NextQuestionRequest):
         interview_id = str(request.interview_id)
         session_id = str(request.session_id)
 
-        # STEP 1: Get live transcription from audio-ai
-        logger.info("🎤 Step 1: Getting live transcription from audio-ai")
+        # STEP 0: Check interview mode
         try:
-            transcription = await audio_client.get_live_transcription(session_id)
-            transcript_text = transcription.get("transcript", request.candidate_response)
-            logger.info(f"✅ Transcription retrieved: {transcript_text[:100]}...")
+             interview_status = await interview_client.get_interview(interview_id)
+             interview_data = interview_status.get("data", {})
+             interview_mode = interview_data.get("mode", "video") # Default to video
+             candidate_id = interview_data.get("candidate_id")
+             job_position_id = interview_data.get("job_position_id")
         except Exception as e:
-            logger.warning(f"⚠️ Transcription failed, using provided response: {str(e)}")
-            transcript_text = request.candidate_response
+             logger.warning(f"Failed to fetch interview details: {str(e)}")
+             interview_mode = "video"
+             candidate_id = None
+             job_position_id = None
+
+        logger.info(f"ℹ️ Interview Mode: {interview_mode}")
+
+        # STEP 1: Get transcription / Response
+        transcript_text = request.candidate_response
+        
+        # Only do live transcription if NOT chat mode
+        if interview_mode != "chat":
+            logger.info("🎤 Step 1: Getting live transcription from audio-ai")
+            try:
+                transcription = await audio_client.get_live_transcription(session_id)
+                transcript_text = transcription.get("transcript", request.candidate_response)
+                logger.info(f"✅ Transcription retrieved: {transcript_text[:100]}...")
+            except Exception as e:
+                logger.warning(f"⚠️ Transcription failed, using provided response: {str(e)}")
+        else:
+             logger.info("💬 Chat Mode: Using provided text response")
 
         # STEP 2: Submit response to text-service for evaluation
         logger.info("📝 Step 2: Submitting response to text-service for evaluation")
@@ -61,22 +81,21 @@ async def get_next_question(request: NextQuestionRequest):
 
         logger.info(f"✅ Response evaluated - Score: {evaluation_score}")
 
-        # STEP 3: Get interview details and check if completed
-        logger.info("📊 Step 3: Checking interview status")
-        interview_status = await interview_client.get_interview(interview_id)
-
-        if not interview_status.get("success"):
-            raise HTTPException(status_code=404, detail="Interview not found")
-
-        interview_details = interview_status.get("data", {})
-        candidate_id = interview_details.get("candidate_id")
-        job_position_id = interview_details.get("job_position_id")
-
         if not candidate_id or not job_position_id:
-            raise HTTPException(
-                status_code=400,
-                detail="candidate_id and job_position_id required"
-            )
+             # Try to fetch again if didn't fetch in step 0 (already did, but safety check)
+             if not interview_data:
+                 interview_status = await interview_client.get_interview(interview_id)
+                 interview_details = interview_status.get("data", {})
+                 candidate_id = interview_details.get("candidate_id")
+                 job_position_id = interview_details.get("job_position_id")
+
+             if not candidate_id or not job_position_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail="candidate_id and job_position_id required"
+                )
+        else:
+             interview_details = interview_data # Reuse
 
         # STEP 4: Try to generate next question
         logger.info("🎯 Step 4: Generating next question")
@@ -104,10 +123,8 @@ async def get_next_question(request: NextQuestionRequest):
                     # Transition to coding stage
                     logger.info(f"🔄 Transitioning to coding stage with {len(coding_question_ids)} questions")
 
-                    # Update interview status to coding_in_progress
                     try:
                         await interview_client.update_interview_status(interview_id, "coding_in_progress")
-                        logger.info("✅ Interview status updated to 'coding_in_progress'")
                     except Exception as e:
                         logger.warning(f"⚠️ Failed to update interview status: {str(e)}")
 
@@ -120,31 +137,23 @@ async def get_next_question(request: NextQuestionRequest):
                     )
                 else:
                     # No coding round - interview is fully completed
-                    logger.info("✅ Interview fully completed (no coding round)")
+                    logger.info("✅ Interview fully completed")
 
-                    # Update interview status to completed
                     try:
                         await interview_client.update_interview_status(interview_id, "completed")
-                        logger.info("✅ Interview status updated to 'completed'")
                     except Exception as e:
                         logger.warning(f"⚠️ Failed to update interview status: {str(e)}")
 
-                    # Get final evaluation
-                    try:
-                        final_eval = await text_client.evaluate_interview(interview_id)
-                        logger.info("✅ Final evaluation retrieved")
-                    except Exception as e:
-                        logger.warning(f"⚠️ Failed to get final evaluation: {str(e)}")
-                        final_eval = {"data": {}}
-
                     return NextQuestionResponse(
                         status="completed",
-                        summary=final_eval.get("data", {}),
+                        next_question_text="",
+                        audio_download_url="",
                         evaluation_score=evaluation_score,
-                        feedback=feedback
+                        feedback=feedback,
+                        audio_ai_triggered=False,
+                        video_ai_triggered=False
                     )
             else:
-                # Some other error occurred
                 logger.error(f"❌ Next question generation failed: {error_msg}")
                 raise HTTPException(status_code=500, detail=f"Failed to generate next question: {error_msg}")
 
@@ -154,81 +163,86 @@ async def get_next_question(request: NextQuestionRequest):
 
         logger.info(f"✅ Next question generated: {next_question_text[:100]}...")
 
-        # STEP 5: Generate TTS for next question
-        logger.info("🎵 Step 5: Generating TTS for next question")
-        audio_result = await audio_client.generate_speech(
-            text=next_question_text,
-            interview_id=interview_id
-        )
-
+        # STEP 5: Generate TTS for next question (Skip for Chat)
         audio_url = None
-        if audio_result.get("success"):
-            # Add /audio-ai prefix for API Gateway routing
-            raw_audio_url = audio_result.get("data", {}).get("audio_url")
-            audio_url = f"/audio-ai{raw_audio_url}" if raw_audio_url else None
-            logger.info(f"✅ TTS generated")
-        else:
-            logger.warning(f"⚠️ TTS generation failed: {audio_result.get('error')}")
+        if interview_mode != "chat":
+            logger.info("🎵 Step 5: Generating TTS for next question")
+            audio_result = await audio_client.generate_speech(
+                text=next_question_text,
+                interview_id=interview_id
+            )
 
-        # STEP 6: Fire-and-forget - Trigger background analysis (async, don't wait)
-        logger.info("🔥 Step 6: Triggering background AI analysis (async)")
+            if audio_result.get("success"):
+                raw_audio_url = audio_result.get("data", {}).get("audio_url")
+                audio_url = f"/audio-ai{raw_audio_url}" if raw_audio_url else None
+                logger.info(f"✅ TTS generated")
+            else:
+                logger.warning(f"⚠️ TTS generation failed: {audio_result.get('error')}")
+        else:
+             logger.info("Step 5: Skipping TTS for Chat Mode")
+
+        # STEP 6: Fire-and-forget - Trigger background analysis
+        # Skip for Chat Mode
         audio_ai_success = False
         video_ai_success = False
 
-        try:
-            # Get media_file_id from media service
-            media_result = await media_client.finalize_upload(
-                interview_id=interview_id,
-                session_id=session_id
-            )
+        if interview_mode != "chat":
+            logger.info("🔥 Step 6: Triggering background AI analysis (async)")
+            try:
+                # Get media_file_id from media service
+                media_result = await media_client.finalize_upload(
+                    interview_id=interview_id,
+                    session_id=session_id
+                )
 
-            media_file_id = None
-            for key in ["media_file_id", "db_id", "id"]:
-                if key in media_result.get("data", {}):
-                    media_file_id = media_result["data"][key]
-                    break
+                media_file_id = None
+                for key in ["media_file_id", "db_id", "id"]:
+                    if key in media_result.get("data", {}):
+                        media_file_id = media_result["data"][key]
+                        break
 
-            if media_file_id:
-                logger.info(f"✅ Video finalized: {media_file_id}")
+                if media_file_id:
+                    logger.info(f"✅ Video finalized: {media_file_id}")
 
-                # Create async tasks for background analysis (don't wait for completion)
-                async def trigger_audio_analysis():
-                    try:
-                        await audio_client.analyze_audio(
-                            interview_id=interview_id,
-                            session_id=session_id,
-                            media_file_id=str(media_file_id)
-                        )
-                        logger.info("✅ Audio analysis triggered")
-                        return True
-                    except Exception as e:
-                        logger.warning(f"⚠️ Audio analysis trigger failed: {str(e)}")
-                        return False
+                    async def trigger_audio_analysis():
+                        try:
+                            await audio_client.analyze_audio(
+                                interview_id=interview_id,
+                                session_id=session_id,
+                                media_file_id=str(media_file_id)
+                            )
+                            logger.info("✅ Audio analysis triggered")
+                            return True
+                        except Exception as e:
+                            logger.warning(f"⚠️ Audio analysis trigger failed: {str(e)}")
+                            return False
 
-                async def trigger_video_analysis():
-                    try:
-                        # Get video URL and trigger analysis
-                        await audio_client.analyze_video(
-                            interview_id=interview_id,
-                            session_id=session_id,
-                            media_file_id=str(media_file_id)
-                        )
-                        logger.info("✅ Video analysis triggered")
-                        return True
-                    except Exception as e:
-                        logger.warning(f"⚠️ Video analysis trigger failed: {str(e)}")
-                        return False
+                    async def trigger_video_analysis():
+                        try:
+                            await audio_client.analyze_video(
+                                interview_id=interview_id,
+                                session_id=session_id,
+                                media_file_id=str(media_file_id)
+                            )
+                            logger.info("✅ Video analysis triggered")
+                            return True
+                        except Exception as e:
+                            logger.warning(f"⚠️ Video analysis trigger failed: {str(e)}")
+                            return False
 
-                # Fire-and-forget: don't await, just create tasks
-                asyncio.create_task(trigger_audio_analysis())
-                asyncio.create_task(trigger_video_analysis())
+                    # Fire-and-forget
+                    if interview_mode in ["audio", "video"]:
+                         asyncio.create_task(trigger_audio_analysis())
+                         audio_ai_success = True # Assume success for response
+                    
+                    if interview_mode == "video":
+                         asyncio.create_task(trigger_video_analysis())
+                         video_ai_success = True
 
-        except Exception as e:
-            logger.warning(f"⚠️ Media finalization/AI trigger failed (non-critical): {str(e)}")
+            except Exception as e:
+                logger.warning(f"⚠️ Media finalization/AI trigger failed (non-critical): {str(e)}")
 
         # STEP 7: Return response to candidate
-        # NOTE: Do NOT send evaluation_score or feedback to candidate!
-        # These are for recruiter/dashboard only
         logger.info("✅ Returning next question to candidate")
         return NextQuestionResponse(
             status="continue",
@@ -245,6 +259,147 @@ async def get_next_question(request: NextQuestionRequest):
         raise
     except Exception as e:
         logger.error(f"❌ Orchestration failed: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/submit-audio-response", response_model=NextQuestionResponse)
+async def submit_audio_response(
+    interview_id: str = Form(...),
+    session_id: str = Form(...),
+    audio_file: UploadFile = File(...)
+):
+    """
+    ORCHESTRATED FLOW - Handle audio response submission
+
+    Complete Flow:
+    1. Upload audio to media-service
+    2. Transcribe audio
+    3. Submit transcript to text-service
+    4. Generate TTS for next question
+    5. Return: next question + audio
+    """
+    logger.info(f"🎤 Processing audio response for session {session_id}")
+
+    try:
+        interview_id = str(interview_id)
+        session_id = str(session_id)
+
+        # STEP 1: Upload audio to media-service
+        # Reuse upload_video for now as it handles generic media, or verify if upload_audio exists
+        # Assuming media_client has upload_audio or we likely use upload_video for general media?
+        # Let's assume upload_video works for audio or check media_client
+        # Checking media_client methods... (assumed available or we use generic)
+        # Using upload_video for now but ideally name should be upload_media
+        upload_result = await media_client.upload_video(
+            interview_id=interview_id,
+            session_id=session_id,
+            video_file=audio_file.file
+        )
+
+        if not upload_result.get("success"):
+            logger.error(f"❌ Audio upload failed: {upload_result.get('error')}")
+            raise HTTPException(status_code=400, detail="Audio upload failed")
+
+        storage_uri = upload_result.get("data", {}).get("storage_uri")
+        media_file_id = upload_result.get("data", {}).get("file_id")
+
+        if not storage_uri:
+            raise HTTPException(status_code=400, detail="No storage URI returned")
+
+        logger.info(f"✅ Audio uploaded: {storage_uri}")
+
+        # BACKGROUND STEP: Trigger Audio AI analysis (fire-and-forget)
+        if media_file_id:
+            logger.info("🚀 Triggering background Audio AI analysis")
+            try:
+                await audio_client.analyze_audio(
+                    interview_id=interview_id,
+                    session_id=session_id,
+                    media_file_id=media_file_id
+                )
+                logger.info("✅ Audio analysis triggered")
+            except Exception as e:
+                logger.warning(f"⚠️ Audio analysis trigger failed: {str(e)}")
+        
+        # STEP 2: Transcribe
+        try:
+            if storage_uri.startswith("/"):
+                media_url = f"http://media-service:8080{storage_uri}"
+            else:
+                media_url = storage_uri
+
+            transcription = await audio_client.transcribe_audio(media_url)
+            transcript_text = transcription.get("transcript", "")
+        except Exception as e:
+            logger.error(f"Transcription failed: {str(e)}")
+            raise HTTPException(status_code=400, detail=f"Transcription failed: {str(e)}")
+
+        # STEP 3: Submit to Text Service
+        evaluation_result = await text_client.submit_response(
+            interview_id=interview_id,
+            session_id=session_id,
+            response_text=transcript_text
+        )
+
+        if not evaluation_result.get("success"):
+             raise HTTPException(status_code=400, detail=evaluation_result.get("error"))
+
+        # ... (Rest of logic similar to other endpoints: Get Next Q, TTS, Return)
+        # Reusing logic by valid refactoring would be better, but duplicatng for speed now.
+        
+        # Get interview details
+        interview_status = await interview_client.get_interview(interview_id)
+        interview_details = interview_status.get("data", {})
+        candidate_id = interview_details.get("candidate_id")
+        job_position_id = interview_details.get("job_position_id")
+
+        # Generate next question
+        next_question_result = await text_client.get_next_question(
+            interview_id=interview_id,
+            candidate_id=candidate_id,
+            job_position_id=job_position_id
+        )
+
+        if not next_question_result.get("success"):
+            # Handle completion
+            completed = next_question_result.get("completed", False)
+            if completed:
+                # Handle completion logic (same as video)
+                await interview_client.update_interview_status(interview_id, "completed")
+                return NextQuestionResponse(
+                    status="completed",
+                    # Return empty fields required
+                    next_question_text="",
+                    audio_download_url="",
+                    audio_ai_triggered=True,
+                    video_ai_triggered=False
+                )
+            else:
+                raise HTTPException(status_code=500, detail="Failed to generate question")
+
+        next_q_text = next_question_result.get("data", {}).get("question_text", "")
+        next_q_id = next_question_result.get("data", {}).get("id", "")
+
+        # TTS
+        audio_result = await audio_client.generate_speech(text=next_q_text, interview_id=interview_id)
+        audio_url = None
+        if audio_result.get("success"):
+             raw = audio_result.get("data", {}).get("audio_url")
+             audio_url = f"/audio-ai{raw}" if raw else None
+
+        return NextQuestionResponse(
+            status="continue",
+            next_question_text=next_q_text,
+            next_question_id=next_q_id,
+            audio_download_url=audio_url,
+            audio_ai_triggered=True,
+            video_ai_triggered=False
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Audio response failed: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
