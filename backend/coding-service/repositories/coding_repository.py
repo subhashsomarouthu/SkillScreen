@@ -166,15 +166,22 @@ class CodingRepository:
         page: int = 1,
         page_size: int = 20
     ) -> Dict[str, Any]:
-        """Get paginated list of coding questions for an organization (includes platform questions)"""
-        # Build query conditions - include both org-specific AND platform-wide questions
-        conditions = [
-            or_(
-                coding_questions_table.c.organization_id == uuid.UUID(organization_id),
-                coding_questions_table.c.organization_id == PLATFORM_ORG_ID
-            ),
-            coding_questions_table.c.deleted_at.is_(None)
-        ]
+        """Get paginated list of coding questions for an organization (includes platform questions)
+        
+        If organization_id is None (admin), returns all questions across all organizations.
+        """
+        # Build query conditions
+        conditions = [coding_questions_table.c.deleted_at.is_(None)]
+        
+        # If org_id provided, filter to that org + platform questions
+        # If None (admin), show ALL questions
+        if organization_id:
+            conditions.append(
+                or_(
+                    coding_questions_table.c.organization_id == uuid.UUID(organization_id),
+                    coding_questions_table.c.organization_id == PLATFORM_ORG_ID
+                )
+            )
 
         if difficulty:
             conditions.append(coding_questions_table.c.difficulty == difficulty)

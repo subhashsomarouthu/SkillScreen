@@ -10,6 +10,12 @@ export interface User {
   lastName?: string;
   organizationId?: string;
   organizationName?: string;
+  organization?: {
+    id: string;
+    hasCodingAccess: boolean;
+    domain?: string;
+    name?: string;
+  };
 }
 
 export interface AuthToken {
@@ -71,6 +77,12 @@ export async function mockLogin(usernameOrEmail: string, password: string): Prom
       lastName: userData.last_name,
       organizationId: userData.organization_id,
       organizationName: userData.organization_name,
+      organization: userData.organization ? {
+        id: userData.organization.id,
+        hasCodingAccess: userData.organization.has_coding_access,
+        domain: userData.organization.domain,
+        name: userData.organization.name
+      } : undefined
     };
 
     return {

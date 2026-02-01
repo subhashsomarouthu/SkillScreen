@@ -73,7 +73,7 @@ class UpdateQuestionRequest(BaseModel):
 @router.post("", status_code=201)
 async def create_question(
     request: CreateQuestionRequest,
-    current_user: TokenData = Depends(require_role("recruiter", "hiring_manager", "hr", "team_lead"))
+    current_user: TokenData = Depends(require_role("admin", "recruiter", "hiring_manager", "hr", "team_lead"))
 ):
     """
     Create a new coding question.
@@ -142,20 +142,24 @@ async def create_question(
 
 @router.get("")
 async def list_questions(
-    current_user: TokenData = Depends(require_role("recruiter", "hiring_manager", "hr", "team_lead")),
+    current_user: TokenData = Depends(require_role("admin", "recruiter", "hiring_manager", "hr", "team_lead")),
     difficulty: Optional[str] = Query(None, description="Filter by difficulty: easy, medium, hard"),
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(20, ge=1, le=100, alias="pageSize", description="Items per page")
 ):
     """
     List coding questions for the organization.
+    Admin users can see all questions across all organizations.
     """
     try:
         with UnitOfWork() as uow:
             repo = CodingRepository(uow)
 
+            # Admin can see all questions, others see their org only
+            org_id = None if current_user.role == "admin" else current_user.organization_id
+            
             result = repo.get_questions_by_organization(
-                organization_id=current_user.organization_id,
+                organization_id=org_id,
                 difficulty=difficulty,
                 page=page,
                 page_size=page_size
@@ -170,7 +174,7 @@ async def list_questions(
 
 @router.get("/random")
 async def get_random_questions(
-    current_user: TokenData = Depends(require_role("recruiter", "hiring_manager", "hr", "team_lead")),
+    current_user: TokenData = Depends(require_role("admin", "recruiter", "hiring_manager", "hr", "team_lead")),
     count: int = Query(1, ge=1, le=10, description="Number of questions"),
     difficulty: Optional[str] = Query(None, description="Filter by difficulty"),
     exclude: Optional[str] = Query(None, description="Comma-separated question IDs to exclude")
@@ -204,7 +208,7 @@ async def get_random_questions(
 @router.get("/{question_id}")
 async def get_question(
     question_id: str,
-    current_user: TokenData = Depends(require_role("recruiter", "hiring_manager", "hr", "team_lead")),
+    current_user: TokenData = Depends(require_role("admin", "recruiter", "hiring_manager", "hr", "team_lead")),
     include_solution: bool = Query(False, alias="includeSolution", description="Include solution")
 ):
     """
@@ -237,7 +241,7 @@ async def get_question(
 async def update_question(
     question_id: str,
     request: UpdateQuestionRequest,
-    current_user: TokenData = Depends(require_role("recruiter", "hiring_manager", "hr"))
+    current_user: TokenData = Depends(require_role("admin", "recruiter", "hiring_manager", "hr"))
 ):
     """
     Update a coding question.
@@ -303,7 +307,7 @@ async def update_question(
 @router.delete("/{question_id}")
 async def delete_question(
     question_id: str,
-    current_user: TokenData = Depends(require_role("recruiter", "hiring_manager", "hr"))
+    current_user: TokenData = Depends(require_role("admin", "recruiter", "hiring_manager", "hr"))
 ):
     """
     Delete (soft delete) a coding question.

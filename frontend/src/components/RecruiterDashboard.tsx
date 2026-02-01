@@ -101,6 +101,8 @@ export default function RecruiterDashboard() {
   const [qaQuestionCount, setQaQuestionCount] = useState(5);
   const [qaTimePerQuestion, setQaTimePerQuestion] = useState(2); // in minutes
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
+  const [hasCodingAccess, setHasCodingAccess] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   // Coding questions state
   const [availableCodingQuestions, setAvailableCodingQuestions] = useState<CodingQuestion[]>([]);
@@ -158,10 +160,12 @@ export default function RecruiterDashboard() {
     const fetchJobs = async () => {
       try {
         setLoadingJobPositions(true);
-        const jobsResponse: any = await apiClient.getJobPositions(user.organizationId);
-        const jobsData = jobsResponse?.success ? jobsResponse.data : jobsResponse;
-        if (jobsData?.job_positions) {
-          setJobPositions(jobsData.job_positions || []);
+        if (user?.organizationId) {
+          const jobsResponse: any = await apiClient.getJobPositions(user.organizationId);
+          const jobsData = jobsResponse?.success ? jobsResponse.data : jobsResponse;
+          if (jobsData?.job_positions) {
+            setJobPositions(jobsData.job_positions || []);
+          }
         }
       } catch (error) {
         console.error('Failed to fetch job positions:', error);
@@ -173,6 +177,16 @@ export default function RecruiterDashboard() {
     fetchStats();
     fetchCandidates();
     fetchJobs();
+
+    // Fetch user profile to check feature flags
+    apiClient.getMe().then((res: any) => {
+      if (res.success && res.data?.user?.organization) {
+        setHasCodingAccess(res.data.user.role === 'admin' || !!res.data.user.organization.has_coding_access);
+      } else if (res.success && res.data?.user?.role === 'admin') {
+        setHasCodingAccess(true);
+      }
+    }).catch(err => console.error('Failed to fetch user profile', err));
+
   }, [user?.organizationId]);
 
   // Fetch coding questions when coding round is enabled
@@ -448,8 +462,8 @@ export default function RecruiterDashboard() {
           <button
             onClick={() => setActiveTab('interviews')}
             className={`px-6 py-3 rounded-md font-semibold transition-colors ${activeTab === 'interviews'
-                ? 'bg-white text-primary-300'
-                : 'text-white hover:bg-primary-200/20'
+              ? 'bg-white text-primary-300'
+              : 'text-white hover:bg-primary-200/20'
               }`}
           >
             Interviews
@@ -457,8 +471,8 @@ export default function RecruiterDashboard() {
           <button
             onClick={() => setActiveTab('candidates')}
             className={`px-6 py-3 rounded-md font-semibold transition-colors ${activeTab === 'candidates'
-                ? 'bg-white text-primary-300'
-                : 'text-white hover:bg-primary-200/20'
+              ? 'bg-white text-primary-300'
+              : 'text-white hover:bg-primary-200/20'
               }`}
           >
             Candidates
@@ -471,8 +485,8 @@ export default function RecruiterDashboard() {
           <button
             onClick={() => setActiveTab('jobs')}
             className={`px-6 py-3 rounded-md font-semibold transition-colors ${activeTab === 'jobs'
-                ? 'bg-white text-primary-300'
-                : 'text-white hover:bg-primary-200/20'
+              ? 'bg-white text-primary-300'
+              : 'text-white hover:bg-primary-200/20'
               }`}
           >
             Job Positions
@@ -590,8 +604,8 @@ export default function RecruiterDashboard() {
                     key={filter}
                     onClick={() => setCandidateFilter(filter)}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${candidateFilter === filter
-                        ? 'bg-white text-primary-300'
-                        : 'bg-white/10 text-white hover:bg-white/20'
+                      ? 'bg-white text-primary-300'
+                      : 'bg-white/10 text-white hover:bg-white/20'
                       }`}
                   >
                     {filter === 'all' ? 'All' : filter === 'hire' ? 'Recommended' : filter.charAt(0).toUpperCase() + filter.slice(1)}
@@ -770,12 +784,47 @@ export default function RecruiterDashboard() {
                       <label className="text-sm text-primary-100">Enable Coding Round</label>
                       <button
                         type="button"
-                        onClick={() => setHasCodingRound(!hasCodingRound)}
+                        onClick={() => {
+                          if (!hasCodingAccess && !hasCodingRound) {
+                            setShowUpgradeModal(true);
+                          } else {
+                            setHasCodingRound(!hasCodingRound);
+                          }
+                        }}
                         className={`w-12 h-6 rounded-full transition-colors ${hasCodingRound ? 'bg-green-500' : 'bg-primary-200/40'}`}
                       >
                         <div className={`w-5 h-5 rounded-full bg-white transition-transform ${hasCodingRound ? 'translate-x-6' : 'translate-x-0.5'}`} />
                       </button>
                     </div>
+
+                    {showUpgradeModal && (
+                      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                        <div className="bg-[#1e1e1e] border border-primary-200/30 rounded-xl p-6 max-w-md w-full shadow-2xl">
+                          <div className="flex items-center gap-3 mb-4 text-yellow-400">
+                            <Award className="w-8 h-8" />
+                            <h3 className="text-xl font-bold">Premium Feature</h3>
+                          </div>
+
+                          <p className="text-white/80 mb-6 leading-relaxed">
+                            Coding rounds are not available in the free trial. This is a chargeable feature.
+                          </p>
+
+                          <div className="bg-primary-200/10 rounded-lg p-4 mb-6 border border-primary-200/20">
+                            <p className="text-sm text-primary-100 mb-1">To enable access, please contact:</p>
+                            <p className="text-white font-mono select-all">pavanchakravarthy2000@gmail.com</p>
+                          </div>
+
+                          <div className="flex justify-end">
+                            <button
+                              onClick={() => setShowUpgradeModal(false)}
+                              className="px-4 py-2 bg-white text-primary-300 font-medium rounded-lg hover:bg-white/90 transition-colors"
+                            >
+                              Close
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     {hasCodingRound && (
                       <div className="space-y-3 mb-3 pl-2 border-l-2 border-primary-200/30">
@@ -805,8 +854,8 @@ export default function RecruiterDashboard() {
                                   }
                                 }}
                                 className={`px-2 py-1 rounded text-xs transition-colors ${allowedLanguages.includes(lang)
-                                    ? 'bg-blue-500 text-white'
-                                    : 'bg-primary-200/20 text-white/70 hover:bg-primary-200/40'
+                                  ? 'bg-blue-500 text-white'
+                                  : 'bg-primary-200/20 text-white/70 hover:bg-primary-200/40'
                                   }`}
                               >
                                 {lang}
@@ -849,7 +898,7 @@ export default function RecruiterDashboard() {
                                     <div className="text-xs text-white truncate">{q.title}</div>
                                     <div className="text-[10px] text-white/50">
                                       {q.difficulty && <span className={`mr-2 ${q.difficulty === 'easy' ? 'text-green-400' :
-                                          q.difficulty === 'medium' ? 'text-yellow-400' : 'text-red-400'
+                                        q.difficulty === 'medium' ? 'text-yellow-400' : 'text-red-400'
                                         }`}>{q.difficulty}</span>}
                                       {q.language && <span>{q.language}</span>}
                                     </div>
@@ -874,10 +923,10 @@ export default function RecruiterDashboard() {
                             type="button"
                             onClick={() => setDifficulty(level)}
                             className={`px-3 py-1 rounded text-xs font-medium transition-colors ${difficulty === level
-                                ? level === 'easy' ? 'bg-green-500 text-white'
-                                  : level === 'medium' ? 'bg-yellow-500 text-white'
-                                    : 'bg-red-500 text-white'
-                                : 'bg-primary-200/20 text-white/70 hover:bg-primary-200/40'
+                              ? level === 'easy' ? 'bg-green-500 text-white'
+                                : level === 'medium' ? 'bg-yellow-500 text-white'
+                                  : 'bg-red-500 text-white'
+                              : 'bg-primary-200/20 text-white/70 hover:bg-primary-200/40'
                               }`}
                           >
                             {level.charAt(0).toUpperCase() + level.slice(1)}

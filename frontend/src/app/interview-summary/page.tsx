@@ -60,7 +60,7 @@ export default function InterviewSummaryPage() {
       setAccessDenied(true);
       setLoading(false);
       return;
-    } else if (!authLoading && user && !['recruiter', 'hiring_manager', 'team_lead', 'hr'].includes(user.userType)) {
+    } else if (!authLoading && user && !['admin', 'recruiter', 'hiring_manager', 'team_lead', 'hr'].includes(user.userType)) {
       setAccessDenied(true);
       setLoading(false);
       return;
@@ -94,7 +94,7 @@ export default function InterviewSummaryPage() {
       }
     };
 
-    const allowedRoles = ['recruiter', 'hiring_manager', 'team_lead', 'hr'];
+    const allowedRoles = ['admin', 'recruiter', 'hiring_manager', 'team_lead', 'hr'];
     if (!authLoading && (allowedRoles.includes(user?.userType || '') || isCandidateCompletion)) {
       fetchInterview();
     }
@@ -305,8 +305,8 @@ export default function InterviewSummaryPage() {
               {/* Recommendation Badge */}
               {analysis.recommendation && analysis.recommendation !== 'needs_review' && (
                 <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium mb-4 border ${analysis.recommendation === 'hire' ? 'bg-green-500/20 text-green-300 border-green-500/30' :
-                    analysis.recommendation === 'maybe' ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30' :
-                      'bg-red-500/20 text-red-300 border-red-500/30'
+                  analysis.recommendation === 'maybe' ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30' :
+                    'bg-red-500/20 text-red-300 border-red-500/30'
                   }`}>
                   {analysis.recommendation === 'hire' ? 'Recommended to Hire' :
                     analysis.recommendation === 'maybe' ? 'Maybe' : 'Not Recommended'}
