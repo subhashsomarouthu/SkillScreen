@@ -60,7 +60,7 @@ export async function mockLogin(usernameOrEmail: string, password: string): Prom
     }
 
     // Extract user info from the response
-    const userData = response.data.user;
+    const userData = response.data.user as any;
     const user: User = {
       id: userData.id,
       name: `${userData.first_name || ''} ${userData.last_name || ''}`.trim() || userData.email,
@@ -70,6 +70,7 @@ export async function mockLogin(usernameOrEmail: string, password: string): Prom
       firstName: userData.first_name,
       lastName: userData.last_name,
       organizationId: userData.organization_id,
+      organizationName: userData.organization_name,
     };
 
     return {

@@ -201,11 +201,22 @@ def login(req: LoginRequest):
         if not verify_password(req.password, user["password_hash"]):
             raise HTTPException(status_code=401, detail="Invalid email or password")
 
-        # Create JWT token with organization_id
+        # Get organization name
+        org_name = None
+        if user.get("organization_id"):
+            org_query = select(organizations_table).where(
+                organizations_table.c.id == user["organization_id"]
+            )
+            org_result = uow.session.execute(org_query).fetchone()
+            if org_result:
+                org_name = dict(org_result._mapping).get("name")
+
+        # Create JWT token with organization_id and organization_name
         token = create_access_token({
             "sub": str(user["id"]),
             "email": user["email"],
             "organization_id": str(user["organization_id"]),
+            "organization_name": org_name,
             "role": user["role"],
             "first_name": user.get("first_name"),
             "last_name": user.get("last_name")
@@ -220,7 +231,8 @@ def login(req: LoginRequest):
                 "first_name": user.get("first_name"),
                 "last_name": user.get("last_name"),
                 "role": user["role"],
-                "organization_id": str(user["organization_id"])
+                "organization_id": str(user["organization_id"]),
+                "organization_name": org_name
             },
             "expires_in": ACCESS_TOKEN_EXPIRE_HOURS * 3600
         })

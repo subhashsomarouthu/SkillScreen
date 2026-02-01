@@ -13,7 +13,7 @@ export default function NavBar() {
   const { scrollY } = useScroll();
   const [isScrolled, setIsScrolled] = useState(false);
   const { user, isAuthenticated, logout } = useAuth();
-  
+
   const isActive = (path: string) => pathname === path;
 
   const initialState = {
@@ -146,11 +146,10 @@ export default function NavBar() {
             {isAuthenticated && user && (
               <Link
                 href={user.userType === 'recruiter' ? '/recruiter' : '/candidate'}
-                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${
-                  isActive(user.userType === 'recruiter' ? '/recruiter' : '/candidate')
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${isActive(user.userType === 'recruiter' ? '/recruiter' : '/candidate')
                     ? 'bg-white/10 text-white shadow-lg shadow-black/10'
                     : 'text-white/70 hover:bg-white/5 hover:text-white hover:shadow-lg hover:shadow-black/10'
-                }`}
+                  }`}
               >
                 {user.userType === 'recruiter' ? 'Recruiter Dashboard' : 'Candidate Dashboard'}
               </Link>
@@ -159,32 +158,32 @@ export default function NavBar() {
             {/* Contact */}
             <Link
               href="/contact"
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${
-                isActive('/contact')
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${isActive('/contact')
                   ? 'bg-white/10 text-white shadow-lg shadow-black/10'
                   : 'text-white/70 hover:bg-white/5 hover:text-white hover:shadow-lg hover:shadow-black/10'
-              }`}
+                }`}
             >
               Contact
             </Link>
 
-            {/* About */}
-            <Link
-              href="/about"
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${
-                isActive('/about')
-                  ? 'bg-white/10 text-white shadow-lg shadow-black/10'
-                  : 'text-white/70 hover:bg-white/5 hover:text-white hover:shadow-lg hover:shadow-black/10'
-              }`}
-            >
-              About
-            </Link>
+            {/* Profile - Only for authenticated users */}
+            {isAuthenticated && (
+              <Link
+                href="/profile"
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${isActive('/profile')
+                    ? 'bg-white/10 text-white shadow-lg shadow-black/10'
+                    : 'text-white/70 hover:bg-white/5 hover:text-white hover:shadow-lg hover:shadow-black/10'
+                  }`}
+              >
+                Profile
+              </Link>
+            )}
           </div>
-          <button 
-              onClick={() => router.push('/interview-setup')}
-              className="bg-white text-black px-5 py-2 rounded-lg text-sm font-medium transition-all duration-300 hover:bg-white/90"
-            >
-              Join Meeting
+          <button
+            onClick={() => router.push('/interview-setup')}
+            className="bg-white text-black px-5 py-2 rounded-lg text-sm font-medium transition-all duration-300 hover:bg-white/90"
+          >
+            Join Meeting
           </button>
           {/* User Menu */}
           {isAuthenticated && user ? (
@@ -194,16 +193,16 @@ export default function NavBar() {
                 <span className="text-white text-sm font-medium">{user.name}</span>
                 <span className="text-white/60 text-xs capitalize">{user.userType}</span>
               </div>
-              
+
               {/* User Avatar */}
               <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
                 <span className="text-white text-sm font-bold">
                   {user.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
                 </span>
               </div>
-              
+
               {/* Sign Out Button */}
-              <button 
+              <button
                 onClick={() => {
                   logout();
                   router.push('/login');
@@ -216,13 +215,13 @@ export default function NavBar() {
           ) : (
             /* Auth CTA Buttons */
             <div className="flex items-center space-x-3">
-              <button 
+              <button
                 onClick={() => router.push('/onboarding')}
                 className="px-5 py-2 rounded-lg text-sm font-medium transition-all duration-300 bg-white/10 text-white hover:bg-white/20"
               >
                 Sign Up
               </button>
-              <button 
+              <button
                 onClick={() => router.push('/login')}
                 className="bg-white text-black px-5 py-2 rounded-lg text-sm font-medium transition-all duration-300 hover:bg-white/90"
               >
