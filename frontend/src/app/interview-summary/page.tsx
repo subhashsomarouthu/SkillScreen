@@ -244,8 +244,8 @@ export default function InterviewSummaryPage() {
 
           <div className="flex items-center gap-3">
             <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium border ${interview.status === 'completed'
-                ? 'bg-green-500/10 text-green-400 border-green-500/20'
-                : 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'
+              ? 'bg-green-500/10 text-green-400 border-green-500/20'
+              : 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'
               }`}>
               {interview.status === 'completed' ? <CheckCircle className="w-4 h-4" /> : <Clock className="w-4 h-4 animate-spin" />}
               {interview.status === 'completed' ? 'Analysis Complete' : 'Processing...'}
@@ -271,7 +271,7 @@ export default function InterviewSummaryPage() {
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <h3 className="text-lg font-semibold">{interview.candidate_name || interview.candidate_id || 'Unknown Candidate'}</h3>
-                    <p className="text-white/50 text-sm">{interview.candidate_email || 'Candidate'}</p>
+                    <p className="text-white/50 text-sm break-all">{interview.candidate_email || 'Candidate'}</p>
                   </div>
                   <div className="text-right">
                     <div className="text-lg font-mono font-medium">
@@ -304,13 +304,12 @@ export default function InterviewSummaryPage() {
 
               {/* Recommendation Badge */}
               {analysis.recommendation && analysis.recommendation !== 'needs_review' && (
-                <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium mb-4 border ${
-                  analysis.recommendation === 'hire' ? 'bg-green-500/20 text-green-300 border-green-500/30' :
-                  analysis.recommendation === 'maybe' ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30' :
-                  'bg-red-500/20 text-red-300 border-red-500/30'
-                }`}>
+                <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium mb-4 border ${analysis.recommendation === 'hire' ? 'bg-green-500/20 text-green-300 border-green-500/30' :
+                    analysis.recommendation === 'maybe' ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30' :
+                      'bg-red-500/20 text-red-300 border-red-500/30'
+                  }`}>
                   {analysis.recommendation === 'hire' ? 'Recommended to Hire' :
-                   analysis.recommendation === 'maybe' ? 'Maybe' : 'Not Recommended'}
+                    analysis.recommendation === 'maybe' ? 'Maybe' : 'Not Recommended'}
                 </div>
               )}
 
@@ -336,7 +335,7 @@ export default function InterviewSummaryPage() {
                             animate={{ width: `${cat.score}%` }}
                             transition={{ duration: 1, delay: 0.2 + (idx * 0.1) }}
                             className={`h-full rounded-full ${cat.score >= 80 ? 'bg-green-500' :
-                                cat.score >= 60 ? 'bg-yellow-500' : 'bg-red-500'
+                              cat.score >= 60 ? 'bg-yellow-500' : 'bg-red-500'
                               }`}
                           />
                         </div>
@@ -421,7 +420,7 @@ export default function InterviewSummaryPage() {
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="font-medium text-white">{cat.name}</h4>
                       <span className={`px-2 py-1 rounded text-xs font-bold ${cat.score >= 80 ? 'bg-green-500/20 text-green-300' :
-                          cat.score >= 60 ? 'bg-yellow-500/20 text-yellow-300' : 'bg-red-500/20 text-red-300'
+                        cat.score >= 60 ? 'bg-yellow-500/20 text-yellow-300' : 'bg-red-500/20 text-red-300'
                         }`}>
                         {cat.score}/100
                       </span>
