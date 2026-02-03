@@ -10,10 +10,11 @@ services:
     container_name: api-gateway
     ports:
       - "5001:8080"
+    env_file:
+      - ./backend/api-gateway/.env
     environment:
       PORT: 8080
       HOST: 0.0.0.0
-      SECRET_KEY: supersecret
       ALGORITHM: HS256
       USER_SERVICE_URL: http://user-service:8080
       SSO_SERVICE_URL: http://sso-service:8080
@@ -47,14 +48,14 @@ services:
       dockerfile: Dockerfile
     container_name: user-service
     ports:
-      - "8007:8080"
+      - "127.0.0.1:8007:8080"
+    env_file:
+      - ./backend/user-service/.env
     environment:
       PORT: 8080
       HOST: 0.0.0.0
-      DATABASE_URL: postgresql://postgres:postgres@host.docker.internal:5432/skillscreen_database
       PYTHONPATH: /app:/common-service
       # JWT Configuration (must match SSO service)
-      SECRET_KEY: supersecret
       ALGORITHM: HS256
       # logging
       ENV: dev
@@ -80,13 +81,12 @@ services:
     container_name: assessment-service
     platform: linux/amd64
     ports:
-      - "8005:8005"
+      - "127.0.0.1:8005:8005"
     env_file:
       - ./backend/assessment-service/.env   
     environment:
       - PORT=8080
       - HOST=0.0.0.0
-      - DATABASE_URL=postgresql://postgres:postgres@host.docker.internal:5432/skillscreen_database
       - USE_LLM_WEIGHTS=false   
     volumes:
       - ./backend/assessment-service:/app
@@ -100,14 +100,14 @@ services:
       dockerfile: Dockerfile
     container_name: coding-service
     ports:
-      - "8008:8080"
+      - "127.0.0.1:8008:8080"
+    env_file:
+      - ./backend/coding-service/.env
     environment:
       - PORT=8080
       - HOST=0.0.0.0
-      - DATABASE_URL=postgresql://postgres:postgres@host.docker.internal:5432/skillscreen_database
       - PYTHONPATH=/app:/common-service
       # JWT Configuration (must match SSO service)
-      - SECRET_KEY=supersecret
       - ALGORITHM=HS256
       # logging
       - ENV=dev
@@ -117,10 +117,6 @@ services:
       - LOG_FILE=coding-service.log
       - ENABLE_SEQ=false
       - SEQ_URL=http://seq:5341
-      # Judge0 API
-      - JUDGE0_BASE_URL=https://judge0-ce.p.rapidapi.com
-      - JUDGE0_RAPIDAPI_KEY=51a8a459afmsh0d9fa8864da57d9p19258fjsn0a24328cb69c
-      - JUDGE0_RAPIDAPI_HOST=judge0-ce.p.rapidapi.com
     volumes:
       - ./backend/coding-service:/app
       - ./backend/common-service:/common-service
@@ -158,7 +154,7 @@ services:
     container_name: audio-ai-service
     platform: linux/amd64
     ports:
-      - "8000:8080"
+      - "127.0.0.1:8000:8080"
     env_file:
       - ./backend/audio-ai-service/.env
     environment:
@@ -184,11 +180,12 @@ services:
       dockerfile: Dockerfile
     container_name: video-ai-service
     ports:
-      - "8006:8080"
+      - "127.0.0.1:8006:8080"
+    env_file:
+      - ./backend/video-ai-service/app/.env
     environment:
       PORT: 8080
       HOST: 0.0.0.0
-      DATABASE_URL: postgresql://postgres:postgres@host.docker.internal:5432/skillscreen_database
       PYTHONPATH: /app:/common-service
       TARGET_FPS: 2.0  # Frame sampling rate: 2 FPS = 0.5 second intervals (for 30fps video: every 15th frame)
     volumes:
@@ -204,7 +201,7 @@ services:
       dockerfile: Dockerfile
     container_name: text-ai-service
     ports:
-      - "8002:8080"
+      - "127.0.0.1:8002:8080"
     env_file:
       - ./backend/text-ai-service/.env  
     environment:
@@ -214,7 +211,6 @@ services:
       ENVIRONMENT: development
       DEBUG: 'True'
       LOG_LEVEL: INFO
-      DATABASE_URL: postgresql://postgres:postgres@host.docker.internal:5432/skillscreen_database
     volumes:
       - ./backend/text-ai-service:/app
       - ./backend/common-service:/common-service
@@ -230,13 +226,12 @@ services:
       dockerfile: Dockerfile
     container_name: interview-service
     ports:
-      - "8003:8080"
+      - "127.0.0.1:8003:8080"
     env_file:
       - ./backend/interview-service/.env
     environment:
       - PORT=8080
       - HOST=0.0.0.0
-      - DATABASE_URL=postgresql://postgres:postgres@host.docker.internal:5432/skillscreen_database
       - PYTHONPATH=/app:/common-service
       - CORS_ORIGINS=http://localhost:3000
       - AZURE_RESUME_SAS_URL=https://skillscreenstorage00.blob.core.windows.net/resumes?sp=racwdl&st=2025-11-18T22:03:40Z&se=2026-01-01T06:18:40Z&spr=https&sv=2024-11-04&sr=c&sig=OwDaTiu32nUCTpk3OCrcHtwbUELDWpGBh8PGcNZ3r0o%3D
@@ -252,11 +247,12 @@ services:
       dockerfile: Dockerfile
     container_name: media-service
     ports:
-      - "8004:8080"
+      - "127.0.0.1:8004:8080"
+    env_file:
+      - ./backend/media-service/.env
     environment:
       PORT: 8080
       HOST: 0.0.0.0
-      DATABASE_URL: postgresql://postgres:postgres@host.docker.internal:5432/skillscreen_database
       CORS_ORIGINS: http://localhost:3000
       PYTHONPATH: /app:/common-service
       USE_AZURE_STORAGE: 'false'
@@ -272,10 +268,11 @@ services:
       context: ./backend/notification-service
       dockerfile: Dockerfile
     container_name: notification-service
+    env_file:
+      - ./backend/notification-service/.env
     environment:
       PORT: 8080
       HOST: 0.0.0.0
-      DATABASE_URL: postgresql://postgres:postgres@host.docker.internal:5432/skillscreen_database
     volumes:
       - ./backend/notification-service:/app
     networks:
@@ -287,13 +284,13 @@ services:
       dockerfile: Dockerfile
     container_name: sso-service
     ports:
-      - "8001:8080"
+      - "127.0.0.1:8001:8080"
+    env_file:
+      - ./backend/sso-service/.env
     environment:
       PORT: 8080
       HOST: 0.0.0.0
-      SECRET_KEY: supersecret
       ALGORITHM: HS256
-      DATABASE_URL: postgresql://postgres:postgres@host.docker.internal:5432/skillscreen_database
       PYTHONPATH: /app:/common-service
     volumes:
       - ./backend/sso-service:/app
@@ -306,10 +303,11 @@ services:
       context: ./backend/common-service
       dockerfile: Dockerfile
     container_name: common-service
+    env_file:
+      - ./backend/common-service/.env
     environment:
       PORT: 8080
       HOST: 0.0.0.0
-      DATABASE_URL: postgresql://postgres:postgres@host.docker.internal:5432/skillscreen_database
       SEQ_URL: http://seq:5341
       # logging
       ENV: dev
@@ -364,8 +362,8 @@ services:
     environment:
       - ACCEPT_EULA=Y
     ports:
-      - "5341:5341" # ingestion endpoint
-      - "8081:80" # web UI -> http://localhost:8081
+      - "127.0.0.1:5341:5341" # ingestion endpoint
+      - "127.0.0.1:8081:80" # web UI -> http://localhost:8081
     volumes:
       - seq-data:/data
     networks:
