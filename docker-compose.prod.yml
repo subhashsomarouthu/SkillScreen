@@ -1,0 +1,278 @@
+# SkillScreen Platform - Production Environment (ACR Images)
+
+services:
+
+  api-gateway:
+    image: skillscreen.azurecr.io/skillscreen/api-gateway:latest
+    container_name: api-gateway
+    ports:
+      - "5001:8080"
+    env_file:
+      - ./backend/api-gateway/.env
+    environment:
+      PORT: 8080
+      HOST: 0.0.0.0
+      ALGORITHM: HS256
+      USER_SERVICE_URL: http://user-service:8080
+      SSO_SERVICE_URL: http://sso-service:8080
+      ASSESSMENT_SERVICE_URL: http://assessment-service:8005
+      CODING_SERVICE_URL: http://coding-service:8080
+      MEDIA_SERVICE_URL: http://media-service:8080
+      TEXT_SERVICE_URL: http://text-service:8080
+      AUDIO_AI_SERVICE_URL: http://audio-ai-service:8080
+      VIDEO_AI_SERVICE_URL: http://video-ai-service:8080
+      TEXT_AI_SERVICE_URL: http://text-ai-service:8080
+      INTERVIEW_SERVICE_URL: http://interview-service:8080
+      NOTIFICATION_SERVICE_URL: http://notification-service:8080
+      ORCHESTRATION_SERVICE_URL: http://orchestration-service:8080
+    depends_on:
+      - user-service
+      - sso-service
+      - assessment-service
+      - coding-service
+      - interview-service
+      - text-ai-service
+      - orchestration-service
+    networks:
+      - skill-screen-network
+
+  user-service:
+    image: skillscreen.azurecr.io/skillscreen/user-service:latest
+    container_name: user-service
+    env_file:
+      - ./backend/user-service/.env
+    environment:
+      PORT: 8080
+      HOST: 0.0.0.0
+      PYTHONPATH: /app:/common-service
+      ALGORITHM: HS256
+      ENV: dev
+      LOG_LEVEL: DEBUG
+      LOG_TO_FILE: 'true'
+      LOG_DIR: /var/log/app
+      LOG_FILE: user-service.log
+      ENABLE_SEQ: 'false'
+      SEQ_URL: http://seq:5341
+    volumes:
+      - ./backend/common-service:/common-service
+    depends_on:
+      - seq
+    networks:
+      - skill-screen-network
+
+  assessment-service:
+    image: skillscreen.azurecr.io/skillscreen/assessment-service:latest
+    container_name: assessment-service
+    platform: linux/amd64
+    env_file:
+      - ./backend/assessment-service/.env
+    environment:
+      - PORT=8080
+      - HOST=0.0.0.0
+      - USE_LLM_WEIGHTS=false
+    volumes:
+      - ./backend/common-service:/common-service
+    networks:
+      - skill-screen-network
+
+  coding-service:
+    image: skillscreen.azurecr.io/skillscreen/coding-service:latest
+    container_name: coding-service
+    env_file:
+      - ./backend/coding-service/.env
+    environment:
+      - PORT=8080
+      - HOST=0.0.0.0
+      - PYTHONPATH=/app:/common-service
+      - ALGORITHM=HS256
+      - ENV=dev
+      - LOG_LEVEL=DEBUG
+      - LOG_TO_FILE=true
+      - LOG_DIR=/var/log/app
+      - LOG_FILE=coding-service.log
+      - ENABLE_SEQ=false
+      - SEQ_URL=http://seq:5341
+    volumes:
+      - ./backend/common-service:/common-service
+    depends_on:
+      - seq
+    networks:
+      - skill-screen-network
+
+  audio-ai-service:
+    image: skillscreen.azurecr.io/skillscreen/audio-ai-service:latest
+    container_name: audio-ai-service
+    platform: linux/amd64
+    env_file:
+      - ./backend/audio-ai-service/.env
+    environment:
+      PORT: 8080
+      HOST: 0.0.0.0
+      APP_NAME: audio-ai-service
+      ENVIRONMENT: development
+      DEBUG: 'True'
+      LOG_LEVEL: INFO
+      WHISPER_MODEL_SIZE: base
+      WHISPER_DEVICE: cpu
+      PYTHONPATH: /app:/common-service
+    volumes:
+      - ./backend/common-service:/common-service
+      - media-storage:/app/temp/uploads
+    networks:
+      - skill-screen-network
+
+  video-ai-service:
+    image: skillscreen.azurecr.io/skillscreen/video-ai-service:latest
+    container_name: video-ai-service
+    env_file:
+      - ./backend/video-ai-service/app/.env
+    environment:
+      PORT: 8080
+      HOST: 0.0.0.0
+      PYTHONPATH: /app:/common-service
+      TARGET_FPS: 2.0
+    volumes:
+      - ./backend/common-service:/common-service
+      - media-storage:/app/temp/uploads
+    networks:
+      - skill-screen-network
+
+  text-ai-service:
+    image: skillscreen.azurecr.io/skillscreen/text-ai-service:latest
+    container_name: text-ai-service
+    env_file:
+      - ./backend/text-ai-service/.env
+    environment:
+      PORT: 8080
+      HOST: 0.0.0.0
+      APP_NAME: text-ai-service
+      ENVIRONMENT: development
+      DEBUG: 'True'
+      LOG_LEVEL: INFO
+    volumes:
+      - ./backend/common-service:/common-service
+    depends_on:
+      - seq
+    networks:
+      - skill-screen-network
+
+  interview-service:
+    image: skillscreen.azurecr.io/skillscreen/interview-service:latest
+    container_name: interview-service
+    env_file:
+      - ./backend/interview-service/.env
+    environment:
+      - PORT=8080
+      - HOST=0.0.0.0
+      - PYTHONPATH=/app:/common-service
+    volumes:
+      - ./backend/common-service:/common-service
+    networks:
+      - skill-screen-network
+
+  media-service:
+    image: skillscreen.azurecr.io/skillscreen/media-service:latest
+    container_name: media-service
+    env_file:
+      - ./backend/media-service/.env
+    environment:
+      PORT: 8080
+      HOST: 0.0.0.0
+      CORS_ORIGINS: http://localhost:3000
+      PYTHONPATH: /app:/common-service
+      USE_AZURE_STORAGE: 'false'
+    volumes:
+      - ./backend/common-service:/common-service
+      - media-storage:/app/temp/uploads
+    networks:
+      - skill-screen-network
+
+  notification-service:
+    image: skillscreen.azurecr.io/skillscreen/notification-service:latest
+    container_name: notification-service
+    env_file:
+      - ./backend/notification-service/.env
+    environment:
+      PORT: 8080
+      HOST: 0.0.0.0
+    networks:
+      - skill-screen-network
+
+  sso-service:
+    image: skillscreen.azurecr.io/skillscreen/sso-service:latest
+    container_name: sso-service
+    env_file:
+      - ./backend/sso-service/.env
+    environment:
+      PORT: 8080
+      HOST: 0.0.0.0
+      ALGORITHM: HS256
+      PYTHONPATH: /app:/common-service
+    volumes:
+      - ./backend/common-service:/common-service
+    networks:
+      - skill-screen-network
+
+  common-service:
+    image: skillscreen.azurecr.io/skillscreen/common-service:latest
+    container_name: common-service
+    env_file:
+      - ./backend/common-service/.env
+    environment:
+      PORT: 8080
+      HOST: 0.0.0.0
+      SEQ_URL: http://seq:5341
+      ENV: dev
+      LOG_LEVEL: DEBUG
+      LOG_TO_FILE: 'true'
+      LOG_DIR: /var/log/app
+      LOG_FILE: user-service.log
+      ENABLE_SEQ: 'true'
+    depends_on:
+      - seq
+    networks:
+      - skill-screen-network
+
+  orchestration-service:
+    image: skillscreen.azurecr.io/skillscreen/orchestration-service:latest
+    container_name: orchestration-service
+    env_file:
+      - ./backend/orchestration-service/.env
+    environment:
+      PORT: 8080
+      HOST: 0.0.0.0
+      INTERVIEW_SERVICE_URL: http://interview-service:8080
+      TEXT_SERVICE_URL: http://text-ai-service:8080
+      AUDIO_AI_SERVICE_URL: http://audio-ai-service:8080
+      VIDEO_AI_SERVICE_URL: http://video-ai-service:8080
+      MEDIA_SERVICE_URL: http://media-service:8080
+      ASSESSMENT_SERVICE_URL: http://assessment-service:8005
+      CODING_SERVICE_URL: http://coding-service:8080
+    depends_on:
+      - interview-service
+      - audio-ai-service
+      - media-service
+      - assessment-service
+      - video-ai-service
+      - text-ai-service
+      - coding-service
+    networks:
+      - skill-screen-network
+
+  seq:
+    image: datalust/seq:2024.3
+    container_name: seq
+    environment:
+      - ACCEPT_EULA=Y
+    volumes:
+      - seq-data:/data
+    networks:
+      - skill-screen-network
+
+networks:
+  skill-screen-network:
+    driver: bridge
+
+volumes:
+  seq-data: {}
+  media-storage: {}
