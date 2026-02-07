@@ -19,6 +19,14 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      - name: Azure Debug (Account + ACR List)
+        run: |
+          set -e
+          echo "Azure account info:"
+          az account show
+          echo "ACR registries in subscription:"
+          az acr list -o table
+
       - name: Build and Push Images (ACR Build Tasks)
         run: |
           set -e
