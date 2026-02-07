@@ -13,13 +13,14 @@ load_dotenv()
 SECRET_KEY = os.getenv("SECRET_KEY", "supersecret")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 PORT = int(os.getenv("PORT", "5000"))
+CORS_ORIGINS = [o.strip() for o in os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",") if o.strip()]
 
 app = FastAPI(title="API Gateway")
 
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for development
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -157,7 +158,11 @@ async def forward_request(service_url: str, path: str, request: Request) -> Resp
         
         # Add CORS headers explicitly to ensure they're present
         response_headers = dict(resp.headers)
-        response_headers["Access-Control-Allow-Origin"] = "*"
+        request_origin = request.headers.get("origin")
+        if request_origin and request_origin in CORS_ORIGINS:
+            response_headers["Access-Control-Allow-Origin"] = request_origin
+        else:
+            response_headers["Access-Control-Allow-Origin"] = CORS_ORIGINS[0] if CORS_ORIGINS else "*"
         response_headers["Access-Control-Allow-Credentials"] = "true"
         response_headers["Access-Control-Allow-Methods"] = "*"
         response_headers["Access-Control-Allow-Headers"] = "*"
