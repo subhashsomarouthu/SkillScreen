@@ -285,9 +285,10 @@ class ApiClient {
       const interview = interviewRes.data;
 
       // Assessment service returns data directly (not wrapped in {success, data})
+      const assessmentAny = assessmentRes as any;
       const assessment = assessmentRes?.success
         ? assessmentRes.data
-        : (assessmentRes?.overall_score !== undefined ? assessmentRes : null);
+        : (assessmentAny?.overall_score !== undefined ? assessmentAny : null);
 
       if (assessment) {
         // Build categories from available scores
