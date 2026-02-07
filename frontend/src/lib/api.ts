@@ -4,6 +4,7 @@ import { API_BASE_URL } from './config';
 export interface ApiResponse<T = any> {
   success: boolean;
   data: T;
+  error?: string;
   meta: {
     timestamp: string;
     request_id: string;
