@@ -7,46 +7,30 @@ on:
 
 jobs:
   build-and-deploy:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     permissions:
       contents: read
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Azure Login
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Azure Debug (Account + ACR List)
+      - name: Docker Login to ACR
         run: |
           set -e
-          echo "Azure account info:"
-          az account show
-          echo "ACR registries in subscription:"
-          az acr list -o table
+          echo "${{ secrets.ACR_PASSWORD }}" | docker login "${{ secrets.ACR_LOGIN_SERVER }}" -u "${{ secrets.ACR_USERNAME }}" --password-stdin
 
-      - name: Build and Push Images (ACR Build Tasks)
+      - name: Build and Push Images (Self-Hosted)
         run: |
           set -e
           SERVICES="api-gateway user-service sso-service interview-service media-service audio-ai-service video-ai-service text-ai-service coding-service assessment-service notification-service orchestration-service common-service"
           for svc in $SERVICES; do
             echo "Building $svc..."
-            az acr build --registry "skillscreen" --image "skillscreen/$svc:latest" "./backend/$svc"
+            docker build -t "${{ secrets.ACR_LOGIN_SERVER }}/skillscreen/$svc:latest" "./backend/$svc"
+            docker push "${{ secrets.ACR_LOGIN_SERVER }}/skillscreen/$svc:latest"
           done
 
-      - name: Deploy to VM
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: ACR_LOGIN_SERVER,ACR_USERNAME,ACR_PASSWORD
-          script: |
-            set -e
-            cd SkillScreen
-            git pull
-            echo "$ACR_PASSWORD" | docker login "$ACR_LOGIN_SERVER" -u "$ACR_USERNAME" --password-stdin
-            docker compose -f docker-compose.prod.yml pull
-            docker compose -f docker-compose.prod.yml up -d
+      - name: Deploy (Docker Compose)
+        run: |
+          set -e
+          docker compose -f docker-compose.prod.yml pull
+          docker compose -f docker-compose.prod.yml up -d
