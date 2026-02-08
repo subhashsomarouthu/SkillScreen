@@ -40,6 +40,8 @@ interface Errors {
   companyDomain?: string;
   userRole?: string;
   industry?: string;
+  interviewType?: string;
+  jobRoleName?: string;
   experience?: string;
   skills?: string;
   preferredRole?: string;
@@ -56,6 +58,7 @@ export default function Onboarding() {
   const [showWelcome, setShowWelcome] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
+  const [registrationMessage, setRegistrationMessage] = useState('');
   const [formData, setFormData] = useState<FormData>({
     // Common fields
     fullName: '',
@@ -125,6 +128,8 @@ export default function Onboarding() {
 
       if (userType === 'recruiter') {
         if (!formData.company) newErrors.company = 'Company name is required';
+        if (!formData.interviewType) newErrors.interviewType = 'Interview type is required';
+        if (!formData.jobRoleName) newErrors.jobRoleName = 'Job role name is required';
         // companyDomain, userRole, industry are optional
       } else if (userType === 'job_seeker') {
         if (!formData.experience) newErrors.experience = 'Experience is required';
@@ -161,6 +166,9 @@ export default function Onboarding() {
         });
 
         if (result.success) {
+          setRegistrationMessage(
+            result.message || 'Registration successful! Please check your email to verify your account.'
+          );
           // Start welcome sequence during ripple
           setTimeout(() => {
             setIsRegistering(false);
@@ -353,6 +361,43 @@ export default function Onboarding() {
                     </select>
                   </div>
 
+                  {/* Interview Template Fields (Required) */}
+                  <div className="mt-4 pt-4 border-t border-white/10">
+                    <p className="text-white/80 text-sm mb-3">Interview Template (Required)</p>
+
+                    <div className="space-y-2">
+                      <select
+                        name="interviewType"
+                        value={formData.interviewType}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-3 bg-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-white/30"
+                      >
+                        <option value="" className="bg-gray-900 text-white">Select Interview Type *</option>
+                        <option value="behavioral" className="bg-gray-900 text-white">Behavioral</option>
+                        <option value="technical" className="bg-gray-900 text-white">Technical</option>
+                        <option value="coding" className="bg-gray-900 text-white">Coding</option>
+                        <option value="system_design" className="bg-gray-900 text-white">System Design</option>
+                      </select>
+                      {errors.interviewType && (
+                        <p className="text-red-400 text-sm">{errors.interviewType}</p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2 mt-3">
+                      <input
+                        type="text"
+                        name="jobRoleName"
+                        placeholder="Job Role Name * (e.g., Senior Developer)"
+                        value={formData.jobRoleName}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-3 bg-white/10 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/30"
+                      />
+                      {errors.jobRoleName && (
+                        <p className="text-red-400 text-sm">{errors.jobRoleName}</p>
+                      )}
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
                     <input
                       type="text"
@@ -373,37 +418,6 @@ export default function Onboarding() {
                       onChange={handleInputChange}
                       className="w-full px-4 py-3 bg-white/10 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/30"
                     />
-                  </div>
-
-                  {/* Interview Template Fields (Optional) */}
-                  <div className="mt-4 pt-4 border-t border-white/10">
-                    <p className="text-white/70 text-sm mb-3">Interview Template (Optional)</p>
-
-                    <div className="space-y-2">
-                      <select
-                        name="interviewType"
-                        value={formData.interviewType}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-3 bg-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-white/30"
-                      >
-                        <option value="" className="bg-gray-900 text-white">Select Interview Type</option>
-                        <option value="behavioral" className="bg-gray-900 text-white">Behavioral</option>
-                        <option value="technical" className="bg-gray-900 text-white">Technical</option>
-                        <option value="coding" className="bg-gray-900 text-white">Coding</option>
-                        <option value="system_design" className="bg-gray-900 text-white">System Design</option>
-                      </select>
-                    </div>
-
-                    <div className="space-y-2 mt-3">
-                      <input
-                        type="text"
-                        name="jobRoleName"
-                        placeholder="Job Role Name (e.g., Senior Developer)"
-                        value={formData.jobRoleName}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-3 bg-white/10 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/30"
-                      />
-                    </div>
                   </div>
                 </>
               ) : (
@@ -720,6 +734,11 @@ export default function Onboarding() {
             {/* Main Text Container */}
             <div className="flex flex-col items-center justify-center flex-1 max-w-7xl mx-auto">
               <div className="text-center">
+                {registrationMessage && (
+                  <div className="mb-8 px-6 py-3 rounded-xl bg-blue-500/20 border border-blue-500/30 text-blue-100 text-sm md:text-base">
+                    {registrationMessage}
+                  </div>
+                )}
                 {/* Smaller "Welcome To" text */}
                 <motion.div
                   className="text-white text-3xl md:text-4xl lg:text-5xl tracking-[0.2em] leading-none mb-6"

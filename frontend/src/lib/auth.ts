@@ -110,7 +110,7 @@ export interface SignupData {
   jobRoleName?: string;
 }
 
-export async function realRegister(userData: SignupData): Promise<{ success: boolean; error?: string }> {
+export async function realRegister(userData: SignupData): Promise<{ success: boolean; error?: string; message?: string }> {
   try {
     const { apiClient } = await import('./api');
 
@@ -135,7 +135,7 @@ export async function realRegister(userData: SignupData): Promise<{ success: boo
       return { success: false, error: 'Registration failed' };
     }
 
-    return { success: true };
+    return { success: true, message: response.data?.message };
   } catch (error: any) {
     console.error('Registration error:', error);
     // Try to extract error message from response

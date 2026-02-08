@@ -7,16 +7,16 @@ import Link from 'next/link';
 
 export default function AboutPage() {
   const heroImage =
-    'https://source.unsplash.com/featured/900x900?team,interview&sig=1';
+    'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=900&q=80';
   const missionImage =
-    'https://source.unsplash.com/featured/900x600?meeting,office&sig=2';
+    'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=900&q=80';
   const galleryImages = [
-    'https://source.unsplash.com/featured/600x450?recruiter,conversation&sig=3',
-    'https://source.unsplash.com/featured/600x450?job,interview&sig=4',
-    'https://source.unsplash.com/featured/600x450?professional,meeting&sig=5',
-    'https://source.unsplash.com/featured/600x450?team,discussion&sig=6',
-    'https://source.unsplash.com/featured/600x450?office,collaboration&sig=7',
-    'https://source.unsplash.com/featured/600x450?career,success&sig=8',
+    'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=600&q=80',
+    'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=600&q=80',
+    'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=600&q=80',
+    'https://images.unsplash.com/photo-1525182008055-f88b95ff7980?auto=format&fit=crop&w=600&q=80',
+    'https://images.unsplash.com/photo-1545239351-1141bd82e8a6?auto=format&fit=crop&w=600&q=80',
+    'https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?auto=format&fit=crop&w=600&q=80',
   ];
 
   return (
@@ -37,8 +37,8 @@ export default function AboutPage() {
                   Connecting Talent with Opportunities
                 </h1>
                 <p className="text-white/70 mt-6 text-lg leading-relaxed">
-                  Your trusted partner in modern hiring — combining AI‑powered interviews with
-                  practical, recruiter‑friendly workflows to help teams hire faster and more fairly.
+                  Your trusted partner in modern hiring - combining AI-powered interviews with
+                  practical, recruiter-friendly workflows to help teams hire faster and more fairly.
                 </p>
                 <div className="mt-8">
                   <Link
@@ -102,7 +102,7 @@ export default function AboutPage() {
               <div>
                 <h2 className="text-3xl font-bold text-white mb-3">Our Vision</h2>
                 <p className="text-white/70 leading-relaxed">
-                  To create a world where every hiring decision is transparent, skill‑first, and inclusive —
+                  To create a world where every hiring decision is transparent, skill-first, and inclusive -
                   helping teams discover potential beyond resumes while giving candidates a fair chance to shine.
                 </p>
               </div>

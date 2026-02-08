@@ -20,7 +20,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (usernameOrEmail: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  register: (userData: RegisterData) => Promise<{ success: boolean; error?: string }>;
+  register: (userData: RegisterData) => Promise<{ success: boolean; error?: string; message?: string }>;
   logout: () => void;
   updateUser: (updates: Partial<User>) => void;
   getToken: () => string | null;
@@ -76,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
-  const register = async (userData: RegisterData): Promise<{ success: boolean; error?: string }> => {
+  const register = async (userData: RegisterData): Promise<{ success: boolean; error?: string; message?: string }> => {
     try {
       setIsLoading(true);
 
@@ -102,10 +102,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!loginResult.success) {
         // Registration succeeded but login failed - still consider it a success
         // User will need to login manually
-        return { success: true };
+        return { success: true, message: result.message };
       }
 
-      return { success: true };
+      return { success: true, message: result.message };
     } catch (error: any) {
       const errorMessage = error?.message || 'Registration failed. Please try again.';
       return { success: false, error: errorMessage };
