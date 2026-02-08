@@ -178,9 +178,9 @@ services:
     env_file:
       - ./backend/media-service/.env
     environment:
-      PORT: 8080
-      HOST: 0.0.0.0
-      CORS_ORIGINS: http://localhost:3000
+      SERVER_PORT: 8080
+      SERVER_HOST: 0.0.0.0
+      CORS_ORIGINS: https://skill-screen.com,https://www.skill-screen.com
       PYTHONPATH: /app:/common-service
       USE_AZURE_STORAGE: 'false'
     volumes:
