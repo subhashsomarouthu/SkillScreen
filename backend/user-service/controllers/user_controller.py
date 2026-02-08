@@ -2,10 +2,11 @@ from fastapi import APIRouter, HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List, Any
-from datetime import datetime
+from datetime import datetime, timedelta
 from jose import jwt, JWTError
 from enum import Enum
 import os
+import resend
 
 from repositories.user_repository import UserRepository
 from db import UnitOfWork
@@ -19,6 +20,72 @@ log = init_logger("user-service")
 SECRET_KEY = os.getenv("SECRET_KEY", "supersecret")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 security = HTTPBearer()
+
+# Email verification configuration
+EMAIL_VERIFICATION_ENABLED = os.getenv("EMAIL_VERIFICATION_ENABLED", "false").lower() == "true"
+EMAIL_VERIFICATION_TOKEN_EXP_HOURS = int(os.getenv("EMAIL_VERIFICATION_TOKEN_EXP_HOURS", "24"))
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
+FROM_EMAIL = os.getenv("FROM_EMAIL", "onboarding@resend.dev")
+
+resend.api_key = RESEND_API_KEY
+
+DEFAULT_DISPOSABLE_DOMAINS = {
+    "mailinator.com",
+    "10minutemail.com",
+    "guerrillamail.com",
+    "temp-mail.org",
+    "yopmail.com",
+    "trashmail.com",
+    "maildrop.cc",
+    "getnada.com",
+    "dispostable.com",
+    "tempmail.com",
+}
+
+def is_disposable_email(email: str) -> bool:
+    """Block disposable/temporary email domains."""
+    domain = email.split("@")[-1].lower().strip()
+    env_list = os.getenv("DISPOSABLE_EMAIL_DOMAINS", "").strip()
+    if env_list:
+        blocklist = {d.strip().lower() for d in env_list.split(",") if d.strip()}
+    else:
+        blocklist = DEFAULT_DISPOSABLE_DOMAINS
+    return domain in blocklist
+
+def create_email_verification_token(user_id: str, email: str) -> str:
+    """Create JWT verification token."""
+    expire = datetime.utcnow() + timedelta(hours=EMAIL_VERIFICATION_TOKEN_EXP_HOURS)
+    payload = {
+        "sub": user_id,
+        "email": email,
+        "type": "email_verification",
+        "exp": expire,
+        "iat": datetime.utcnow()
+    }
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+def send_verification_email(email: str, token: str) -> None:
+    """Send email verification link via Resend."""
+    if not RESEND_API_KEY:
+        raise HTTPException(status_code=500, detail="Email verification not configured")
+    verify_link = f"{FRONTEND_URL}/verify-email?token={token}"
+    subject = "Verify your SkillScreen email"
+    html = f"""
+    <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+      <h2>Verify your email</h2>
+      <p>Thanks for signing up for SkillScreen. Please verify your email to activate your account.</p>
+      <p><a href="{verify_link}" style="background:#111827;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none;">Verify Email</a></p>
+      <p>If the button doesn’t work, copy and paste this link:</p>
+      <p>{verify_link}</p>
+    </div>
+    """
+    resend.Emails.send({
+        "from": FROM_EMAIL,
+        "to": email,
+        "subject": subject,
+        "html": html
+    })
 
 
 # ======================
@@ -40,7 +107,7 @@ class SignupRequest(BaseModel):
     company_domain: Optional[str] = None
 
     # User
-    email: str
+    email: EmailStr
     password: str
     first_name: str
     last_name: str
@@ -136,6 +203,10 @@ def signup(req: SignupRequest):
         with UnitOfWork() as uow:
             repo = UserRepository(uow)
 
+            # Block disposable emails
+            if is_disposable_email(req.email):
+                raise HTTPException(status_code=400, detail="Disposable email addresses are not allowed")
+
             # Check if email already exists
             if repo.email_exists(req.email):
                 raise HTTPException(status_code=400, detail="Email already registered")
@@ -156,13 +227,15 @@ def signup(req: SignupRequest):
             )
 
             # Create user with selected role
+            user_is_active = not EMAIL_VERIFICATION_ENABLED
             user = repo.create_user(
                 organization_id=org["id"],
                 email=req.email,
                 password=req.password,
                 first_name=req.first_name,
                 last_name=req.last_name,
-                role=req.role.value
+                role=req.role.value,
+                is_active=user_is_active
             )
 
             # Create interview template if recruiter provides interview type or job role
@@ -185,8 +258,12 @@ def signup(req: SignupRequest):
                 "template_created": template is not None
             })
 
+            if EMAIL_VERIFICATION_ENABLED:
+                token = create_email_verification_token(user["id"], user["email"])
+                send_verification_email(user["email"], token)
+
             response_data = {
-                "message": "Registration successful! Please login.",
+                "message": "Registration successful! Please verify your email." if EMAIL_VERIFICATION_ENABLED else "Registration successful! Please login.",
                 "user": {
                     "id": user["id"],
                     "email": user["email"],
@@ -211,6 +288,34 @@ def signup(req: SignupRequest):
     except Exception as e:
         log.error("user_signup_error", extra={"error": str(e)})
         raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
+
+
+# ======================
+# Email Verification Endpoint
+# ======================
+
+@router.get("/verify-email")
+def verify_email(token: str):
+    """Verify user email and activate account."""
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("type") != "email_verification":
+            raise HTTPException(status_code=400, detail="Invalid verification token")
+
+        user_id = payload.get("sub")
+        if not user_id:
+            raise HTTPException(status_code=400, detail="Invalid verification token")
+
+        with UnitOfWork() as uow:
+            repo = UserRepository(uow)
+            user = repo.get_user_by_id(user_id)
+            if not user:
+                raise HTTPException(status_code=404, detail="User not found")
+            repo.activate_user(user_id)
+
+        return create_response({"message": "Email verified. You can now log in."})
+    except JWTError:
+        raise HTTPException(status_code=400, detail="Invalid or expired token")
 
 
 # ======================

@@ -128,6 +128,10 @@ async def verify_jwt(request: Request, call_next):
         if request.url.path == "/user/signup":
             return await call_next(request)
 
+        # Allow public email verification
+        if request.url.path == "/user/verify-email":
+            return await call_next(request)
+
         # TEMP: allow AI logic routes during development/testing without auth
         if request.url.path.startswith("/ai-logic/"):
             return await call_next(request)

@@ -154,7 +154,8 @@ class UserRepository(BaseRepository):
     # ======================
 
     def create_user(self, organization_id: str, email: str, password: str,
-                    first_name: str, last_name: str, role: str = "recruiter") -> dict:
+                    first_name: str, last_name: str, role: str = "recruiter",
+                    is_active: bool = True) -> dict:
         """Create a new user with hashed password"""
         user_id = uuid.uuid4()
         insert_stmt = users_table.insert().values(
@@ -165,7 +166,7 @@ class UserRepository(BaseRepository):
             first_name=first_name,
             last_name=last_name,
             role=role,
-            is_active=True
+            is_active=is_active
         )
         self.session.execute(insert_stmt)
         return {
@@ -174,8 +175,17 @@ class UserRepository(BaseRepository):
             "first_name": first_name,
             "last_name": last_name,
             "role": role,
-            "organization_id": organization_id
+            "organization_id": organization_id,
+            "is_active": is_active
         }
+
+    def activate_user(self, user_id: str) -> dict:
+        """Activate a user account after email verification"""
+        update_stmt = users_table.update().where(
+            users_table.c.id == uuid.UUID(user_id)
+        ).values(is_active=True)
+        self.session.execute(update_stmt)
+        return self.get_user_by_id(user_id)
 
     def get_user_by_email(self, email: str) -> dict:
         """Get user by email"""
