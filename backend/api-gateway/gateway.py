@@ -70,6 +70,10 @@ async def verify_jwt(request: Request, call_next):
         if request.method == "OPTIONS":
             return await call_next(request)
 
+        # Allow basic health checks without auth
+        if request.url.path in ("/", "/health", "/healthz"):
+            return await call_next(request)
+
         if request.url.path.startswith("/auth/"):
             return await call_next(request)  # allow auth routes
 
@@ -132,11 +136,22 @@ async def verify_jwt(request: Request, call_next):
                     raise HTTPException(status_code=403, detail="Forbidden: insufficient role")
 
         return await call_next(request)
+    except HTTPException as e:
+        return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
     except Exception as e:
         return JSONResponse(status_code=500, content={"detail": str(e)})
 
 
 app.add_middleware(BaseHTTPMiddleware, dispatch=verify_jwt)
+
+# Health endpoints for load balancers / uptime checks
+@app.get("/")
+def root():
+    return {"status": "ok"}
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
 
 # Proxy function
 async def forward_request(service_url: str, path: str, request: Request) -> Response:
