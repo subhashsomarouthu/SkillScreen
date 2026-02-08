@@ -34,5 +34,8 @@ jobs:
           set -e
           cd /home/azureuser/SkillScreen
           git pull
+          for svc in api-gateway user-service sso-service interview-service media-service audio-ai-service video-ai-service text-ai-service coding-service assessment-service notification-service orchestration-service common-service; do
+            docker ps -a --filter "name=$svc" -q | xargs -r docker rm -f
+          done
           docker compose -f docker-compose.prod.yml pull
           docker compose -f docker-compose.prod.yml up -d
