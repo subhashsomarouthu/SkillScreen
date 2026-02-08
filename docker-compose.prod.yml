@@ -118,6 +118,7 @@ services:
     volumes:
       - ./backend/common-service:/common-service
       - media-storage:/app/temp/uploads
+      - ./backend/audio-ai-service/models:/app/models
     networks:
       - skill-screen-network
 
@@ -134,6 +135,7 @@ services:
     volumes:
       - ./backend/common-service:/common-service
       - media-storage:/app/temp/uploads
+      - ./backend/video-ai-service/models:/app/models
     networks:
       - skill-screen-network
 

@@ -51,6 +51,17 @@ jobs:
             echo "Missing $SRC/video-ai-service/app/.env" >&2
             exit 1
           fi
+          if [ -d "$SRC/video-ai-service/models" ]; then
+            mkdir -p "$DEST/video-ai-service/models"
+            cp -r "$SRC/video-ai-service/models/." "$DEST/video-ai-service/models/"
+          else
+            echo "Missing $SRC/video-ai-service/models (required for video-ai-service)" >&2
+            exit 1
+          fi
+          mkdir -p "$DEST/audio-ai-service/models"
+          if [ -d "$SRC/audio-ai-service/models" ]; then
+            cp -r "$SRC/audio-ai-service/models/." "$DEST/audio-ai-service/models/"
+          fi
 
       - name: Deploy (Docker Compose)
         run: |
@@ -68,3 +79,4 @@ jobs:
             rm -f "$DEST/$svc/.env"
           done
           rm -f "$DEST/video-ai-service/app/.env"
+          rm -rf "$DEST/video-ai-service/models" "$DEST/audio-ai-service/models"
