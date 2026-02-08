@@ -331,3 +331,7 @@ credentials/
 
 # SonarQube
 .sonar
+
+#docs
+
+docs/launch-checklist.md

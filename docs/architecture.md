@@ -338,7 +338,7 @@ Each service follows consistent patterns:
 - **coding-service** → text-ai-service, assessment-service, logger-service
 - **notification-service** → ATS APIs, email services, AI services (for reports)
 
-## **📊 Standard API Response Format**
+## ** Standard API Response Format**
 
 All services follow consistent response patterns:
 ```json
@@ -353,14 +353,5 @@ All services follow consistent response patterns:
 }
 ```
 
-## **⚠️ Development Guidelines**
 
-**Feel free to modify the folder structures within individual services according to your team's specific needs and preferences. However, please try to maintain the current overall organization structure for consistency across the project.**
 
-- Keep the separation between `/backend/` and `/frontend/`
-- All backend services are organized under `/backend/` for SSO-based architecture
-- Maintain consistent Docker and testing patterns
-- Use the `/shared/` directory for common utilities
-- Follow the established naming conventions for new services
-
-Each service should remain independently deployable and maintainable while being part of the unified backend architecture.

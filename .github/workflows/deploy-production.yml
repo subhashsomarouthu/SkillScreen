@@ -8,6 +8,7 @@ on:
 jobs:
   build-and-deploy:
     runs-on: self-hosted
+    if: github.ref == 'refs/heads/main' && github.repository == 'subhashsomarouthu/SkillScreen'
     permissions:
       contents: read
 

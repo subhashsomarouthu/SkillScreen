@@ -5,6 +5,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import os
+import time
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -14,6 +15,9 @@ SECRET_KEY = os.getenv("SECRET_KEY", "supersecret")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 PORT = int(os.getenv("PORT", "5000"))
 CORS_ORIGINS = [o.strip() for o in os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",") if o.strip()]
+RATE_LIMIT_ENABLED = os.getenv("RATE_LIMIT_ENABLED", "true").lower() == "true"
+RATE_LIMIT_REQUESTS = int(os.getenv("RATE_LIMIT_REQUESTS", "120"))
+RATE_LIMIT_WINDOW_SECONDS = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
 
 app = FastAPI(title="API Gateway")
 
@@ -25,6 +29,45 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Simple in-memory rate limiting (per IP, fixed window)
+RATE_LIMIT_STORE = {}
+
+def get_client_ip(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    if request.client:
+        return request.client.host
+    return "unknown"
+
+def check_rate_limit(request: Request):
+    if not RATE_LIMIT_ENABLED:
+        return None
+
+    # Skip rate limiting for CORS preflight and health checks
+    if request.method == "OPTIONS":
+        return None
+    if request.url.path in ("/", "/health", "/healthz"):
+        return None
+
+    ip = get_client_ip(request)
+    now = time.time()
+    entry = RATE_LIMIT_STORE.get(ip)
+    if not entry or now > entry["reset"]:
+        RATE_LIMIT_STORE[ip] = {"count": 1, "reset": now + RATE_LIMIT_WINDOW_SECONDS}
+        return None
+
+    entry["count"] += 1
+    if entry["count"] > RATE_LIMIT_REQUESTS:
+        retry_after = max(0, int(entry["reset"] - now))
+        return JSONResponse(
+            status_code=429,
+            content={"detail": "Rate limit exceeded"},
+            headers={"Retry-After": str(retry_after)}
+        )
+
+    return None
 
 # RBAC rules: endpoint prefix → allowed roles
 RBAC_RULES = {
@@ -73,6 +116,10 @@ async def verify_jwt(request: Request, call_next):
         # Allow basic health checks without auth
         if request.url.path in ("/", "/health", "/healthz"):
             return await call_next(request)
+
+        rate_limit_response = check_rate_limit(request)
+        if rate_limit_response is not None:
+            return rate_limit_response
 
         if request.url.path.startswith("/auth/"):
             return await call_next(request)  # allow auth routes
