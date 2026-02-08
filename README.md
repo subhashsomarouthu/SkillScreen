@@ -200,6 +200,10 @@ The platform is designed for containerized deployment with support for developme
 - **API Security**: Rate limiting, input validation, CORS protection
 - **Anti-Cheating**: Multi-modal detection systems
 
+## License
+
+This project is proprietary and protected by copyright. See `LICENSE`.
+
 <div align="center">
 
 **Built with ❤️ by the IntervuAI Team**

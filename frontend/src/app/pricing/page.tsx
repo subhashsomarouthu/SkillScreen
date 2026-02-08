@@ -77,6 +77,18 @@ export default function PricingPage() {
               <p className="text-xl text-white/70 max-w-3xl mx-auto">
                 Choose the perfect plan for your team. All plans include a 14-day free trial.
               </p>
+              <p className="text-sm text-white/50 mt-4">
+                Billing integration is coming soon. For now, you can{' '}
+                <a
+                  href="https://calendly.com/pavanchakravarthy2000/30min"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-white/70 hover:text-white underline underline-offset-4"
+                >
+                  schedule a quick demo
+                </a>
+                .
+              </p>
             </motion.div>
           </div>
 

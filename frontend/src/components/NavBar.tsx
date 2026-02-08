@@ -192,12 +192,14 @@ export default function NavBar() {
               </Link>
             )}
           </div>
-          <button
-            onClick={() => router.push('/interview-setup')}
+          <a
+            href="https://calendly.com/pavanchakravarthy2000/30min"
+            target="_blank"
+            rel="noopener noreferrer"
             className="bg-white text-black px-5 py-2 rounded-lg text-sm font-medium transition-all duration-300 hover:bg-white/90"
           >
-            Join Meeting
-          </button>
+            Let’s Connect
+          </a>
           {/* User Menu */}
           {isAuthenticated && user ? (
             <>
