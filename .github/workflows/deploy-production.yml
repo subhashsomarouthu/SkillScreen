@@ -29,54 +29,10 @@ jobs:
             docker push "${{ secrets.ACR_LOGIN_SERVER }}/skillscreen/$svc:latest"
           done
 
-      - name: Sync Env Files From VM
-        run: |
-          set -e
-          SRC=/home/azureuser/SkillScreen/backend
-          DEST="$GITHUB_WORKSPACE/backend"
-          SERVICES="api-gateway user-service sso-service interview-service media-service audio-ai-service text-ai-service coding-service assessment-service notification-service orchestration-service common-service"
-          for svc in $SERVICES; do
-            if [ -f "$SRC/$svc/.env" ]; then
-              mkdir -p "$DEST/$svc"
-              cp "$SRC/$svc/.env" "$DEST/$svc/.env"
-            else
-              echo "Missing $SRC/$svc/.env" >&2
-              exit 1
-            fi
-          done
-          if [ -f "$SRC/video-ai-service/app/.env" ]; then
-            mkdir -p "$DEST/video-ai-service/app"
-            cp "$SRC/video-ai-service/app/.env" "$DEST/video-ai-service/app/.env"
-          else
-            echo "Missing $SRC/video-ai-service/app/.env" >&2
-            exit 1
-          fi
-          if [ -d "$SRC/video-ai-service/models" ]; then
-            mkdir -p "$DEST/video-ai-service/models"
-            cp -r "$SRC/video-ai-service/models/." "$DEST/video-ai-service/models/"
-          else
-            echo "Missing $SRC/video-ai-service/models (required for video-ai-service)" >&2
-            exit 1
-          fi
-          mkdir -p "$DEST/audio-ai-service/models"
-          if [ -d "$SRC/audio-ai-service/models" ]; then
-            cp -r "$SRC/audio-ai-service/models/." "$DEST/audio-ai-service/models/"
-          fi
-
       - name: Deploy (Docker Compose)
         run: |
           set -e
+          cd /home/azureuser/SkillScreen
+          git pull
           docker-compose -f docker-compose.prod.yml pull
           docker-compose -f docker-compose.prod.yml up -d
-
-      - name: Cleanup Env Files
-        if: always()
-        run: |
-          set -e
-          DEST="$GITHUB_WORKSPACE/backend"
-          SERVICES="api-gateway user-service sso-service interview-service media-service audio-ai-service text-ai-service coding-service assessment-service notification-service orchestration-service common-service"
-          for svc in $SERVICES; do
-            rm -f "$DEST/$svc/.env"
-          done
-          rm -f "$DEST/video-ai-service/app/.env"
-          rm -rf "$DEST/video-ai-service/models" "$DEST/audio-ai-service/models"
