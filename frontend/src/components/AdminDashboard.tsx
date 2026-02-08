@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Building2, Users, FileText, TrendingUp, Filter, LogOut, ClipboardCheck } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { API_BASE_URL } from '@/lib/config';
 import { useRouter } from 'next/navigation';
 
 interface AdminStats {
@@ -102,7 +103,7 @@ export default function AdminDashboard() {
 
     const toggleCodingAccess = async (orgId: string, currentStatus: boolean) => {
         try {
-            const res = await fetch(`http://localhost:5001/user/admin/organizations/${orgId}`, {
+            const res = await fetch(`${API_BASE_URL}/user/admin/organizations/${orgId}`, {
                 method: 'PATCH',
                 headers: getAuthHeaders(),
                 body: JSON.stringify({ has_coding_access: !currentStatus })
@@ -128,7 +129,7 @@ export default function AdminDashboard() {
             setError(null);
 
             // Fetch organizations from user service
-            const orgsRes = await fetch('http://localhost:5001/user/admin/organizations', {
+            const orgsRes = await fetch(`${API_BASE_URL}/user/admin/organizations`, {
                 headers: getAuthHeaders()
             });
 
@@ -142,7 +143,7 @@ export default function AdminDashboard() {
 
             // Try to fetch stats from interview service
             try {
-                const statsRes = await fetch('http://localhost:5001/interview/admin/dashboard/stats', {
+                const statsRes = await fetch(`${API_BASE_URL}/interview/admin/dashboard/stats`, {
                     headers: getAuthHeaders()
                 });
 
@@ -164,7 +165,7 @@ export default function AdminDashboard() {
     const fetchInterviews = async () => {
         try {
             const params = selectedOrg ? `?organization_id=${selectedOrg}` : '';
-            const res = await fetch(`http://localhost:5001/interview/admin/interviews${params}`, {
+            const res = await fetch(`${API_BASE_URL}/interview/admin/interviews${params}`, {
                 headers: getAuthHeaders()
             });
             if (res.ok) {
@@ -179,7 +180,7 @@ export default function AdminDashboard() {
     const fetchCandidates = async () => {
         try {
             const params = selectedOrg ? `?organization_id=${selectedOrg}` : '';
-            const res = await fetch(`http://localhost:5001/interview/admin/candidates${params}`, {
+            const res = await fetch(`${API_BASE_URL}/interview/admin/candidates${params}`, {
                 headers: getAuthHeaders()
             });
             if (res.ok) {
@@ -194,7 +195,7 @@ export default function AdminDashboard() {
     const fetchAssessments = async () => {
         try {
             const params = selectedOrg ? `?organization_id=${selectedOrg}` : '';
-            const res = await fetch(`http://localhost:5001/assessment/v1/admin/assessments${params}`, {
+            const res = await fetch(`${API_BASE_URL}/assessment/v1/admin/assessments${params}`, {
                 headers: getAuthHeaders()
             });
             if (res.ok) {
